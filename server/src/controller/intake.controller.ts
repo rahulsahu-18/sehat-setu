@@ -268,7 +268,16 @@ export const addPatientIntakeInput = async (
 ) => {
   try {
     const { caseId } = req.params;
-    const { content } = req.body as { content?: string };
+    const { content, mode: requestedMode } = req.body as {
+      content?: string;
+      mode?: string;
+    };
+    const inputMode =
+      requestedMode === undefined || requestedMode === InputMode.TEXT
+        ? InputMode.TEXT
+        : requestedMode === InputMode.VOICE
+          ? InputMode.VOICE
+          : null;
     const patientId = req.user?.userId;
 
     if (
@@ -282,6 +291,12 @@ export const addPatientIntakeInput = async (
       return res.status(400).json({
         success: false,
         message: "A message under 4,000 characters is required",
+      });
+    }
+    if (!inputMode) {
+      return res.status(400).json({
+        success: false,
+        message: "Input mode must be TEXT or VOICE",
       });
     }
 
@@ -420,7 +435,7 @@ export const addPatientIntakeInput = async (
 
     const input = await CaseInput.create({
       caseId: caseRecord._id,
-      mode: InputMode.TEXT,
+      mode: inputMode,
       content: content.trim(),
       language: caseRecord.intakeLanguage,
     });
@@ -429,7 +444,10 @@ export const addPatientIntakeInput = async (
         await Answer.create({
           questionId: pendingQuestion._id,
           answer: content.trim(),
-          mode: AnswerMode.TEXT,
+          mode:
+            inputMode === InputMode.VOICE
+              ? AnswerMode.VOICE
+              : AnswerMode.TEXT,
         });
         pendingQuestion.status = QuestionStatus.ANSWERED;
         await pendingQuestion.save();

@@ -14,6 +14,10 @@ import {
   processPatientReport,
   uploadPatientReport,
 } from "../controller/report.controller";
+import {
+  transcribePatientIntakeVoice,
+  uploadIntakeVoice,
+} from "../controller/voice.controller";
 
 const patientRouter: Router = Router();
 
@@ -40,6 +44,13 @@ patientRouter.post(
   protect,
   patientOnly,
   addPatientIntakeInput,
+);
+patientRouter.post(
+  "/intake/:caseId/voice",
+  protect,
+  patientOnly,
+  uploadIntakeVoice,
+  transcribePatientIntakeVoice,
 );
 patientRouter.post(
   "/intake/:caseId/reports",

@@ -17,6 +17,11 @@ const {
   isAIIntakeConfigurationError,
 } = require("../dist/utils/aiIntake.js");
 const {
+  transcribeIntakeAudio,
+  MAX_VOICE_UPLOAD_BYTES,
+  SUPPORTED_VOICE_MIME_TYPES,
+} = require("../dist/utils/voiceTranscription.js");
+const {
   patientOwnedCaseFilter,
   facilityCaseFilter,
 } = require("../dist/utils/caseAccess.js");
@@ -208,6 +213,59 @@ test("distinguishes missing AI configuration from a rejected API key", () => {
       "The AI assistant rejected the server API key. Check OPENAI_API_KEY.",
     ),
     false,
+  );
+});
+
+test("transcribes supported patient voice languages without persisting audio", async () => {
+  process.env.OPENAI_API_KEY = "synthetic-test-key";
+  const requests = [];
+  global.fetch = async (_url, options) => {
+    requests.push(options);
+    return new Response(JSON.stringify({ text: "Synthetic patient transcript" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  for (const [language, code] of [
+    ["english", "en"],
+    ["hindi", "hi"],
+    ["odia", "or"],
+  ]) {
+    const transcript = await transcribeIntakeAudio(
+      language,
+      Buffer.from("synthetic audio"),
+      "audio/webm;codecs=opus",
+    );
+    assert.equal(transcript, "Synthetic patient transcript");
+    const form = requests.at(-1).body;
+    assert.equal(form.get("language"), code);
+    assert.equal(form.get("model"), "whisper-1");
+    assert.equal(form.get("file").type, "audio/webm");
+  }
+
+  assert.equal(SUPPORTED_VOICE_MIME_TYPES.has("audio/webm"), true);
+  assert.equal(SUPPORTED_VOICE_MIME_TYPES.has("audio/mp4"), true);
+  assert.equal(MAX_VOICE_UPLOAD_BYTES, 10 * 1024 * 1024);
+});
+
+test("rejects empty voice transcripts and safely maps provider auth errors", async () => {
+  process.env.OPENAI_API_KEY = "synthetic-test-key";
+  global.fetch = async () =>
+    new Response(JSON.stringify({ text: "  " }), { status: 200 });
+  await assert.rejects(
+    transcribeIntakeAudio("odia", Buffer.from("audio"), "audio/webm"),
+    /no speech was detected/i,
+  );
+
+  global.fetch = async () => new Response("provider-secret", { status: 401 });
+  await assert.rejects(
+    transcribeIntakeAudio("hindi", Buffer.from("audio"), "audio/webm"),
+    (error) => {
+      assert.match(error.message, /rejected the server API key/i);
+      assert.doesNotMatch(error.message, /provider-secret/);
+      return true;
+    },
   );
 });
 

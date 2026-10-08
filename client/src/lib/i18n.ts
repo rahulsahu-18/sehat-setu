@@ -69,14 +69,14 @@ const translations = {
       accent: "is fragmented.",
       body: "Symptoms, reports, lab results and patient history often arrive in different formats. SehatSetu AI helps bring them together for structured human review.",
       flow: [
-        ["PATIENT INFORMATION", "Text intake and selectable-text reports"],
+        ["PATIENT INFORMATION", "Voice / text intake and selectable-text reports"],
         ["STRUCTURED INFORMATION", "Clear, review-ready triage notes"],
         ["QUALIFIED REVIEW", "Nurse, doctor or medical officer"],
       ],
       cards: [
         [
-          "Text intake",
-          "Capture patient-reported symptoms in written messages.",
+          "Voice + text intake",
+          "Record or type patient-reported symptoms in English, Hindi, or Odia.",
         ],
         [
           "Medical Reports",
@@ -96,7 +96,7 @@ const translations = {
       cards: [
         [
           "Symptom Collection",
-          "Capture patient-reported symptoms through text.",
+          "Record or type symptoms in English, Hindi, or Odia; listen to replies aloud.",
         ],
         [
           "Medical Report Summarization",
@@ -163,7 +163,7 @@ const translations = {
       accent: "to action.",
       body: "A simple, transparent workflow designed around the people who deliver care.",
       steps: [
-        ["PATIENT INPUT", "Text / selectable-text report"],
+        ["PATIENT INPUT", "Voice / text / selectable-text report"],
         ["AI EXTRACTION", "Symptoms / Key details / Missing information"],
         ["TRIAGE SUPPORT", "Urgency signals / Structured summary"],
         ["HUMAN REVIEW", "Nurse / Doctor / Medical Officer"],
@@ -246,14 +246,14 @@ const translations = {
       accent: "बिखरी हुई है।",
       body: "लक्षण, रिपोर्ट, लैब परिणाम और रोगी इतिहास अलग-अलग प्रारूपों में आते हैं। SehatSetu AI उन्हें संरचित मानव समीक्षा के लिए एक साथ लाने में मदद करता है।",
       flow: [
-        ["रोगी की जानकारी", "टेक्स्ट और टेक्स्ट-चयन योग्य रिपोर्ट"],
+        ["रोगी की जानकारी", "आवाज़ / टेक्स्ट और टेक्स्ट-चयन योग्य रिपोर्ट"],
         ["व्यवस्थित जानकारी", "स्पष्ट, समीक्षा-तैयार ट्रायेज नोट्स"],
         ["योग्य समीक्षा", "नर्स, डॉक्टर या चिकित्सा अधिकारी"],
       ],
       cards: [
         [
-          "लिखित जानकारी",
-          "रोगी द्वारा बताए गए लक्षणों को लिखित संदेशों में दर्ज करें।",
+          "आवाज़ और लिखित जानकारी",
+          "अंग्रेज़ी, हिंदी या ओड़िया में लक्षण बोलें या लिखें।",
         ],
         [
           "चिकित्सा रिपोर्ट",
@@ -270,7 +270,7 @@ const translations = {
       cards: [
         [
           "लक्षण संग्रह",
-          "रोगी द्वारा बताए गए लक्षणों को टेक्स्ट संदेशों से दर्ज करें।",
+          "अंग्रेज़ी, हिंदी या ओड़िया में लक्षण रिकॉर्ड या टाइप करें और जवाब सुनें।",
         ],
         [
           "चिकित्सा रिपोर्ट सारांश",
@@ -329,7 +329,7 @@ const translations = {
       accent: "कार्रवाई तक।",
       body: "देखभाल देने वाले लोगों के लिए बनाया गया सरल और पारदर्शी कार्यप्रवाह।",
       steps: [
-        ["रोगी की जानकारी", "टेक्स्ट / टेक्स्ट-चयन योग्य रिपोर्ट"],
+        ["रोगी की जानकारी", "आवाज़ / टेक्स्ट / टेक्स्ट-चयन योग्य रिपोर्ट"],
         ["AI निष्कर्षण", "लक्षण / मुख्य विवरण / अधूरी जानकारी"],
         ["ट्रायेज सहायता", "तत्कालता संकेत / व्यवस्थित सारांश"],
         ["मानव समीक्षा", "नर्स / डॉक्टर / चिकित्सा अधिकारी"],
@@ -413,14 +413,14 @@ const translations = {
       accent: "ବିଭିନ୍ନ ସ୍ଥାନରେ ରହେ।",
       body: "ଲକ୍ଷଣ, ରିପୋର୍ଟ, ଲ୍ୟାବ୍ ଫଳାଫଳ ଏବଂ ରୋଗୀ ଇତିହାସ ଭିନ୍ନ ରୂପରେ ଆସେ। SehatSetu AI ସେଗୁଡ଼ିକୁ ମାନବ ସମୀକ୍ଷା ପାଇଁ ଏକତ୍ର କରିବାରେ ସାହାଯ୍ୟ କରେ।",
       flow: [
-        ["ରୋଗୀଙ୍କ ସୂଚନା", "ଟେକ୍ସଟ୍ ଏବଂ ଚୟନଯୋଗ୍ୟ ଲେଖା ରିପୋର୍ଟ"],
+        ["ରୋଗୀଙ୍କ ସୂଚନା", "କଥା / ଟେକ୍ସଟ୍ ଏବଂ ଚୟନଯୋଗ୍ୟ ଲେଖା ରିପୋର୍ଟ"],
         ["ସୁସଂଗଠିତ ସୂଚନା", "ସ୍ପଷ୍ଟ, ସମୀକ୍ଷା-ପ୍ରସ୍ତୁତ ଟ୍ରାଏଜ୍ ନୋଟ୍"],
         ["ଯୋଗ୍ୟ ସମୀକ୍ଷା", "ନର୍ସ, ଡାକ୍ତର କିମ୍ବା ଚିକିତ୍ସା ଅଧିକାରୀ"],
       ],
       cards: [
         [
-          "ଲିଖିତ ତଥ୍ୟ",
-          "ରୋଗୀଙ୍କ ଲକ୍ଷଣକୁ ଲିଖିତ ବାର୍ତ୍ତାରେ ରେକର୍ଡ କରନ୍ତୁ।",
+          "କଥା ଏବଂ ଲିଖିତ ତଥ୍ୟ",
+          "ଇଂରାଜୀ, ହିନ୍ଦୀ କିମ୍ବା ଓଡ଼ିଆରେ ଲକ୍ଷଣ କୁହନ୍ତୁ କିମ୍ବା ଟାଇପ୍ କରନ୍ତୁ।",
         ],
         [
           "ଚିକିତ୍ସା ରିପୋର୍ଟ",
@@ -440,7 +440,7 @@ const translations = {
       cards: [
         [
           "ଲକ୍ଷଣ ସଂଗ୍ରହ",
-          "ରୋଗୀଙ୍କ ଲକ୍ଷଣକୁ ଟେକ୍ସଟ୍ ବାର୍ତ୍ତାରେ ରେକର୍ଡ କରନ୍ତୁ।",
+          "ଇଂରାଜୀ, ହିନ୍ଦୀ କିମ୍ବା ଓଡ଼ିଆରେ ଲକ୍ଷଣ ରେକର୍ଡ କିମ୍ବା ଟାଇପ୍ କରନ୍ତୁ; ଉତ୍ତର ଶୁଣନ୍ତୁ।",
         ],
         [
           "ଚିକିତ୍ସା ରିପୋର୍ଟ ସାରାଂଶ",
@@ -588,13 +588,28 @@ const patientTranslations = {
     deleteConfirm:
       "Permanently delete this case and its intake, report, summary, question, and review data? This cannot be undone.",
     intakeTitle: "Tell us what brings you in.",
-    intakeMode: "TEXT INTAKE",
+    intakeMode: "VOICE + TEXT INTAKE",
     intakeBody:
       "Describe what is bothering you and when it started. This prepares information for your care team.",
     consentTitle: "Before continuing",
     consentBody:
-      "Use synthetic demo text only. Do not enter real patient information. Your text and extracted report text are sent to the configured AI provider and shared with this facility's care team. This prototype does not diagnose or recommend treatment.",
+      "Use synthetic demo information only. Do not enter real patient information. Text, report extracts, and any voice recording you choose to transcribe are sent to the configured AI provider; messages and transcripts are shared with this facility's care team. This prototype does not diagnose or recommend treatment.",
     agreeContinue: "Agree and continue",
+    voiceStart: "Record voice message",
+    voiceStop: "Stop recording",
+    voiceRecording: "Recording",
+    voiceTranscribing: "Transcribing your recording...",
+    voicePrivacy:
+      "Audio is sent to the configured AI provider for transcription. SehatSetu does not store the recording; provider data-retention rules apply. Review and edit the transcript before sending it to your care team.",
+    voiceConsent: "I agree to send this recording to the configured AI provider for transcription.",
+    voiceUnsupported: "Voice recording is not supported in this browser. You can type your message instead.",
+    voiceTooLarge: "This recording is too large. Please record a shorter message.",
+    voiceNoSpeech: "No speech was detected. Try again or type your message.",
+    voiceFailed: "Voice recording could not be processed. Please try again or type your message.",
+    voicePermission: "Allow microphone access in your browser to record a message.",
+    voicePlaybackUnsupported: "Spoken playback is not available in this browser.",
+    playReply: "Read this reply aloud",
+    stopReply: "Stop spoken reply",
     reportTitle: "Add a medical report",
     reportHelp:
       "PDF with selectable text, TXT, or CSV · up to 5 MB. Scanned PDFs and images are not supported. Extracted text is saved to this case for care-team review.",
@@ -651,13 +666,28 @@ const patientTranslations = {
     deleteConfirm:
       "क्या इस मामले की जानकारी, रिपोर्ट, सारांश, सवाल और समीक्षा डेटा हमेशा के लिए मिटाना है? इसे वापस नहीं लाया जा सकता।",
     intakeTitle: "बताइए, आप यहाँ क्यों आए हैं।",
-    intakeMode: "लिखित जानकारी",
+    intakeMode: "आवाज़ और लिखित जानकारी",
     intakeBody:
       "बताइए कि क्या परेशानी है और यह कब शुरू हुई। इससे स्वास्थ्य टीम के लिए जानकारी तैयार होगी।",
     consentTitle: "आगे बढ़ने से पहले",
     consentBody:
-      "केवल कृत्रिम डेमो टेक्स्ट दें। असली मरीज़ की जानकारी न डालें। आपका टेक्स्ट और रिपोर्ट से निकाला गया टेक्स्ट AI सेवा और इस सुविधा की स्वास्थ्य टीम के साथ साझा होगा। यह प्रोटोटाइप निदान या उपचार की सलाह नहीं देता।",
+      "केवल कृत्रिम डेमो जानकारी दें। असली मरीज़ की जानकारी न डालें। टेक्स्ट, रिपोर्ट से निकाली गई जानकारी और टेक्स्ट में बदलने के लिए चुनी गई आवाज़ की रिकॉर्डिंग AI सेवा को भेजी जाती है; संदेश और ट्रांसक्रिप्ट इस सुविधा की स्वास्थ्य टीम के साथ साझा होते हैं। यह प्रोटोटाइप निदान या उपचार की सलाह नहीं देता।",
     agreeContinue: "सहमति दें और आगे बढ़ें",
+    voiceStart: "आवाज़ में संदेश रिकॉर्ड करें",
+    voiceStop: "रिकॉर्डिंग रोकें",
+    voiceRecording: "रिकॉर्ड हो रहा है",
+    voiceTranscribing: "रिकॉर्डिंग को टेक्स्ट में बदला जा रहा है...",
+    voicePrivacy:
+      "ऑडियो को टेक्स्ट में बदलने के लिए AI सेवा को भेजा जाता है। SehatSetu रिकॉर्डिंग सहेजता नहीं है; सेवा की डेटा-संग्रह नीति लागू होगी। स्वास्थ्य टीम को भेजने से पहले टेक्स्ट देखें और संपादित करें।",
+    voiceConsent: "मैं इस रिकॉर्डिंग को टेक्स्ट में बदलने के लिए AI सेवा को भेजने की सहमति देता/देती हूँ।",
+    voiceUnsupported: "इस ब्राउज़र में आवाज़ रिकॉर्ड नहीं हो सकती। आप अपना संदेश लिख सकते हैं।",
+    voiceTooLarge: "रिकॉर्डिंग बहुत बड़ी है। कृपया छोटा संदेश रिकॉर्ड करें।",
+    voiceNoSpeech: "बोली हुई आवाज़ नहीं मिली। फिर कोशिश करें या संदेश लिखें।",
+    voiceFailed: "आवाज़ रिकॉर्डिंग पर काम नहीं हो सका। फिर कोशिश करें या संदेश लिखें।",
+    voicePermission: "संदेश रिकॉर्ड करने के लिए ब्राउज़र में माइक्रोफ़ोन की अनुमति दें।",
+    voicePlaybackUnsupported: "इस ब्राउज़र में आवाज़ चलाना उपलब्ध नहीं है।",
+    playReply: "यह जवाब आवाज़ में सुनें",
+    stopReply: "आवाज़ रोकें",
     reportTitle: "मेडिकल रिपोर्ट जोड़ें",
     reportHelp:
       "चुने जा सकने वाले टेक्स्ट वाला PDF, TXT या CSV · अधिकतम 5 MB। स्कैन किए गए PDF और तस्वीरें समर्थित नहीं हैं। निकाला गया टेक्स्ट स्वास्थ्य टीम की समीक्षा के लिए इस मामले में सहेजा जाएगा।",
@@ -714,13 +744,28 @@ const patientTranslations = {
     deleteConfirm:
       "ଏହି ମାମଲାର ତଥ୍ୟ, ରିପୋର୍ଟ, ସାରାଂଶ, ପ୍ରଶ୍ନ ଓ ସମୀକ୍ଷା ତଥ୍ୟ ସବୁଦିନ ପାଇଁ ହଟାଇବେ କି? ଏହାକୁ ଫେରାଇ ଅଣାଯାଇପାରିବ ନାହିଁ।",
     intakeTitle: "ଆପଣଙ୍କୁ କଣ ଅସୁବିଧା ହେଉଛି କୁହନ୍ତୁ।",
-    intakeMode: "ଲିଖିତ ତଥ୍ୟ",
+    intakeMode: "କଥା ଏବଂ ଲିଖିତ ତଥ୍ୟ",
     intakeBody:
       "କେଉଁ ଅସୁବିଧା ହେଉଛି ଏବଂ କେବେ ଆରମ୍ଭ ହେଲା କୁହନ୍ତୁ। ଏହା ସ୍ୱାସ୍ଥ୍ୟ ଦଳ ପାଇଁ ତଥ୍ୟ ପ୍ରସ୍ତୁତ କରିବ।",
     consentTitle: "ଆଗକୁ ବଢ଼ିବା ପୂର୍ବରୁ",
     consentBody:
-      "କେବଳ କୃତ୍ରିମ ଡେମୋ ଲେଖା ବ୍ୟବହାର କରନ୍ତୁ। ପ୍ରକୃତ ରୋଗୀଙ୍କ ତଥ୍ୟ ଦିଅନ୍ତୁ ନାହିଁ। ଆପଣଙ୍କ ଲେଖା ଓ ରିପୋର୍ଟରୁ ବାହାର କରାଯାଇଥିବା ଲେଖା AI ସେବା ଓ ଏହି କେନ୍ଦ୍ରର ସ୍ୱାସ୍ଥ୍ୟ ଦଳ ସହିତ ବାଣ୍ଟାଯିବ। ଏହି ପ୍ରୋଟୋଟାଇପ୍ ରୋଗ ନିର୍ଣ୍ଣୟ କିମ୍ବା ଚିକିତ୍ସା ପରାମର୍ଶ ଦିଏ ନାହିଁ।",
+      "କେବଳ କୃତ୍ରିମ ଡେମୋ ତଥ୍ୟ ବ୍ୟବହାର କରନ୍ତୁ। ପ୍ରକୃତ ରୋଗୀଙ୍କ ତଥ୍ୟ ଦିଅନ୍ତୁ ନାହିଁ। ଲେଖା, ରିପୋର୍ଟରୁ ବାହାର କରାଯାଇଥିବା ତଥ୍ୟ ଏବଂ ଆପଣ ଟେକ୍ସଟ୍ କରିବାକୁ ବାଛୁଥିବା ଭଏସ୍ ରେକର୍ଡିଂ AI ସେବାକୁ ପଠାଯାଏ; ବାର୍ତ୍ତା ଓ ଟ୍ରାନ୍ସକ୍ରିପ୍ଟ ଏହି କେନ୍ଦ୍ରର ସ୍ୱାସ୍ଥ୍ୟ ଦଳ ସହିତ ବାଣ୍ଟାଯାଏ। ଏହି ପ୍ରୋଟୋଟାଇପ୍ ରୋଗ ନିର୍ଣ୍ଣୟ କିମ୍ବା ଚିକିତ୍ସା ପରାମର୍ଶ ଦିଏ ନାହିଁ।",
     agreeContinue: "ସମ୍ମତି ଦେଇ ଆଗକୁ ବଢ଼ନ୍ତୁ",
+    voiceStart: "କଥାରେ ବାର୍ତ୍ତା ରେକର୍ଡ କରନ୍ତୁ",
+    voiceStop: "ରେକର୍ଡିଂ ବନ୍ଦ କରନ୍ତୁ",
+    voiceRecording: "ରେକର୍ଡ ହେଉଛି",
+    voiceTranscribing: "ଆପଣଙ୍କ ରେକର୍ଡିଂ ଟେକ୍ସଟ୍ ହେଉଛି...",
+    voicePrivacy:
+      "ରେକର୍ଡିଂକୁ ଟେକ୍ସଟ୍ କରିବା ପାଇଁ AI ସେବାକୁ ପଠାଯାଏ। SehatSetu ରେକର୍ଡିଂ ସଞ୍ଚୟ କରେ ନାହିଁ; ସେବାର ତଥ୍ୟ ରଖିବା ନୀତି ପ୍ରଯୁଜ୍ୟ। ସ୍ୱାସ୍ଥ୍ୟ ଦଳକୁ ପଠାଇବା ପୂର୍ବରୁ ଟେକ୍ସଟ୍ ଯାଞ୍ଚ ଓ ସଂଶୋଧନ କରନ୍ତୁ।",
+    voiceConsent: "ଏହି ରେକର୍ଡିଂକୁ ଟେକ୍ସଟ୍ କରିବା ପାଇଁ AI ସେବାକୁ ପଠାଇବାକୁ ମୁଁ ସମ୍ମତ।",
+    voiceUnsupported: "ଏହି ବ୍ରାଉଜରରେ ଭଏସ୍ ରେକର୍ଡିଂ ସମର୍ଥିତ ନୁହେଁ। ଆପଣ ବାର୍ତ୍ତା ଟାଇପ୍ କରିପାରିବେ।",
+    voiceTooLarge: "ରେକର୍ଡିଂ ବହୁତ ବଡ଼। ଦୟାକରି ଛୋଟ ବାର୍ତ୍ତା ରେକର୍ଡ କରନ୍ତୁ।",
+    voiceNoSpeech: "କୌଣସି କଥା ଚିହ୍ନଟ ହେଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ କିମ୍ବା ଟାଇପ୍ କରନ୍ତୁ।",
+    voiceFailed: "ଭଏସ୍ ରେକର୍ଡିଂ ପ୍ରକ୍ରିୟା ହୋଇପାରିଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ କିମ୍ବା ଟାଇପ୍ କରନ୍ତୁ।",
+    voicePermission: "ବାର୍ତ୍ତା ରେକର୍ଡ କରିବା ପାଇଁ ବ୍ରାଉଜରରେ ମାଇକ୍ରୋଫୋନ୍ ଅନୁମତି ଦିଅନ୍ତୁ।",
+    voicePlaybackUnsupported: "ଏହି ବ୍ରାଉଜରରେ କଥା ଶୁଣିବା ସମର୍ଥିତ ନୁହେଁ।",
+    playReply: "ଏହି ଉତ୍ତରଟି ଶୁଣନ୍ତୁ",
+    stopReply: "କଥା ବନ୍ଦ କରନ୍ତୁ",
     reportTitle: "ମେଡିକାଲ୍ ରିପୋର୍ଟ ଯୋଡ଼ନ୍ତୁ",
     reportHelp:
       "ଚୟନଯୋଗ୍ୟ ଲେଖା ଥିବା PDF, TXT କିମ୍ବା CSV · ସର୍ବାଧିକ 5 MB। ସ୍କାନ୍ କରାଯାଇଥିବା PDF ଓ ଚିତ୍ର ସମର୍ଥିତ ନୁହେଁ। ବାହାର କରାଯାଇଥିବା ଲେଖା ସ୍ୱାସ୍ଥ୍ୟ ଦଳର ସମୀକ୍ଷା ପାଇଁ ଏହି ମାମଲାରେ ସଞ୍ଚୟ ହେବ।",

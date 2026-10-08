@@ -4,7 +4,11 @@ import {
   ArrowLeft,
   ArrowUp,
   CheckCircle2,
+  Mic,
   ShieldCheck,
+  Square,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import api from "@/services/api";
@@ -58,12 +62,24 @@ function PatientIntakePage() {
   const [referralNote, setReferralNote] =
     useState<PatientReferralNote | null>(null);
   const [content, setContent] = useState("");
+  const [inputMode, setInputMode] = useState<"TEXT" | "VOICE">("TEXT");
   const [reportFile, setReportFile] = useState<File | null>(null);
   const reportInputRef = useRef<HTMLInputElement>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [voiceConsentAccepted, setVoiceConsentAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [speakingMessage, setSpeakingMessage] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const discardRecordingRef = useRef(false);
+  const voiceRequestRef = useRef<AbortController | null>(null);
   const copy = getPatientCopy(
     activeCase?.intakeLanguage === "hindi"
       ? "hi"
@@ -78,15 +94,67 @@ function PatientIntakePage() {
   ].includes(activeCase?.status || "");
 
   useEffect(() => {
+    if (!recording) return;
+    const timer = window.setInterval(
+      () => setRecordingSeconds((seconds) => seconds + 1),
+      1000,
+    );
+    return () => window.clearInterval(timer);
+  }, [recording]);
+
+  useEffect(() => {
+    if (recordingSeconds >= 60 && mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+  }, [recordingSeconds]);
+
+  useEffect(
+    () => () => {
+      const recorder = mediaRecorderRef.current;
+      voiceRequestRef.current?.abort();
+      voiceRequestRef.current = null;
+      if (recorder) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        if (recorder.state !== "inactive") recorder.stop();
+      }
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      speechUtteranceRef.current = null;
+      window.speechSynthesis?.cancel();
+    },
+    [],
+  );
+
+  useEffect(() => {
     let cancelled = false;
     setLoadingHistory(true);
     setMessages([]);
     setSummary(null);
     setCareTeamGuidance([]);
     setReferralNote(null);
+    setContent("");
+    setInputMode("TEXT");
     setActiveCase(null);
     setConsentAccepted(false);
+    setVoiceConsentAccepted(false);
     setError("");
+    speechUtteranceRef.current = null;
+    window.speechSynthesis?.cancel();
+    setSpeakingMessage(null);
+    discardRecordingRef.current = true;
+    voiceRequestRef.current?.abort();
+    voiceRequestRef.current = null;
+    setTranscribing(false);
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (recorder.state !== "inactive") recorder.stop();
+      mediaRecorderRef.current = null;
+    }
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    setRecording(false);
+    setRecordingSeconds(0);
     if (!caseId) {
       setLoadingHistory(false);
       return () => {
@@ -135,6 +203,7 @@ function PatientIntakePage() {
     try {
       const response = await api.post(`/patient/intake/${caseId}/input`, {
         content,
+        mode: inputMode,
       });
       const data = response.data.data;
       setActiveCase((current) =>
@@ -166,6 +235,7 @@ function PatientIntakePage() {
         conversation: nextMessages,
       });
       setContent("");
+      setInputMode("TEXT");
     } catch (requestError: any) {
       setError(
         requestError.response?.data?.message || "Unable to submit your intake.",
@@ -173,6 +243,150 @@ function PatientIntakePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const startVoiceRecording = async () => {
+    setError("");
+    if (!voiceConsentAccepted) return;
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      setError(copy.voiceUnsupported);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const preferredMimeType = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+        "audio/ogg;codecs=opus",
+      ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
+      const recorder = preferredMimeType
+        ? new MediaRecorder(stream, { mimeType: preferredMimeType })
+        : new MediaRecorder(stream);
+      discardRecordingRef.current = false;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        setRecording(false);
+        if (discardRecordingRef.current) {
+          audioChunksRef.current = [];
+          return;
+        }
+        if (!audioChunksRef.current.length || !caseId) return;
+        const audio = new Blob(audioChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+        audioChunksRef.current = [];
+        if (audio.size > 10 * 1024 * 1024) {
+          setError(copy.voiceTooLarge);
+          return;
+        }
+        const extension = audio.type.includes("mp4") ? "mp4" : "webm";
+        const formData = new FormData();
+        formData.append("audio", audio, `intake.${extension}`);
+        const controller = new AbortController();
+        voiceRequestRef.current = controller;
+        setTranscribing(true);
+        try {
+          const response = await api.post(
+            `/patient/intake/${caseId}/voice`,
+            formData,
+            { signal: controller.signal },
+          );
+          const transcript = response.data.data.transcript as string;
+          if (!transcript?.trim()) {
+            setError(copy.voiceNoSpeech);
+            return;
+          }
+          setContent((current) =>
+            current.trim()
+              ? `${current.trim()}\n${transcript.trim()}`
+              : transcript.trim(),
+          );
+          setInputMode("VOICE");
+        } catch (requestError: any) {
+          if (!controller.signal.aborted) {
+            setError(
+              requestError.response?.data?.message || copy.voiceFailed,
+            );
+          }
+        } finally {
+          if (voiceRequestRef.current === controller) {
+            voiceRequestRef.current = null;
+            setTranscribing(false);
+          }
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      setRecordingSeconds(0);
+      recorder.start(250);
+      setRecording(true);
+    } catch (recordingError) {
+      const permissionDenied =
+        recordingError instanceof DOMException &&
+        recordingError.name === "NotAllowedError";
+      setError(permissionDenied ? copy.voicePermission : copy.voiceFailed);
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const toggleSpokenReply = (message: string, index: number) => {
+    if (!("speechSynthesis" in window)) {
+      setError(copy.voicePlaybackUnsupported);
+      return;
+    }
+    if (speakingMessage === index) {
+      speechUtteranceRef.current = null;
+      window.speechSynthesis.cancel();
+      setSpeakingMessage(null);
+      return;
+    }
+    speechUtteranceRef.current = null;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    const voiceLanguage =
+      activeCase?.intakeLanguage === "hindi"
+        ? "hi-IN"
+        : activeCase?.intakeLanguage === "odia"
+          ? "or-IN"
+          : "en-IN";
+    utterance.lang = voiceLanguage;
+    const voices = window.speechSynthesis.getVoices();
+    utterance.voice =
+      voices.find((voice) => voice.lang.toLowerCase() === voiceLanguage.toLowerCase()) ||
+      voices.find((voice) =>
+        voice.lang.toLowerCase().startsWith(voiceLanguage.slice(0, 2)),
+      ) ||
+      null;
+    utterance.onend = () => {
+      if (speechUtteranceRef.current === utterance) {
+        speechUtteranceRef.current = null;
+        setSpeakingMessage(null);
+      }
+    };
+    utterance.onerror = () => {
+      if (speechUtteranceRef.current === utterance) {
+        speechUtteranceRef.current = null;
+        setSpeakingMessage(null);
+        setError(copy.voicePlaybackUnsupported);
+      }
+    };
+    speechUtteranceRef.current = utterance;
+    setSpeakingMessage(index);
+    window.speechSynthesis.speak(utterance);
   };
 
   const uploadReport = async (event: FormEvent<HTMLFormElement>) => {
@@ -406,6 +620,31 @@ function PatientIntakePage() {
                       {message.role === "assistant" ? "CARE ASSISTANT" : "YOU"}
                     </span>
                     <p>{message.content}</p>
+                    {message.role === "assistant" && (
+                      <button
+                        className="intake-speak-button"
+                        type="button"
+                        aria-label={
+                          speakingMessage === index
+                            ? copy.stopReply
+                            : copy.playReply
+                        }
+                        title={
+                          speakingMessage === index
+                            ? copy.stopReply
+                            : copy.playReply
+                        }
+                        onClick={() =>
+                          toggleSpokenReply(message.content, index)
+                        }
+                      >
+                        {speakingMessage === index ? (
+                          <VolumeX size={15} />
+                        ) : (
+                          <Volume2 size={15} />
+                        )}
+                      </button>
+                    )}
                   </article>
                 ))
               )}
@@ -427,19 +666,72 @@ function PatientIntakePage() {
                 id="concern"
                 className="intake-textarea"
                 value={content}
-                onChange={(event) => setContent(event.target.value)}
+                onChange={(event) => {
+                  setContent(event.target.value);
+                  setInputMode("TEXT");
+                }}
                 placeholder={copy.messagePlaceholder}
-                required
-                minLength={2}
                 maxLength={4000}
                 disabled={
                   loading ||
+                  transcribing ||
+                  recording ||
                   loadingHistory ||
                   !consentAccepted ||
                   !canSendMessage
                 }
                 rows={3}
               />
+              <div className="intake-voice-tools">
+                <label className="intake-voice-consent">
+                  <input
+                    type="checkbox"
+                    checked={voiceConsentAccepted}
+                    onChange={(event) =>
+                      setVoiceConsentAccepted(event.target.checked)
+                    }
+                    disabled={recording || transcribing || !consentAccepted}
+                  />
+                  <span>{copy.voiceConsent}</span>
+                </label>
+                {recording ? (
+                  <button
+                    className="intake-voice-button intake-voice-recording"
+                    type="button"
+                    onClick={stopVoiceRecording}
+                    aria-label={copy.voiceStop}
+                  >
+                    <Square size={15} fill="currentColor" />
+                    <span>
+                      {copy.voiceRecording} · 0:
+                      {String(recordingSeconds).padStart(2, "0")}
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    className="intake-voice-button"
+                    type="button"
+                    onClick={startVoiceRecording}
+                    disabled={
+                      loading ||
+                      transcribing ||
+                      !voiceConsentAccepted ||
+                      loadingHistory ||
+                      !consentAccepted ||
+                      !canSendMessage
+                    }
+                  >
+                    <Mic size={16} />
+                    <span>{copy.voiceStart}</span>
+                  </button>
+                )}
+                {transcribing && (
+                  <span className="intake-voice-status" role="status">
+                    {copy.voiceTranscribing}
+                  </span>
+                )}
+                <p className="intake-voice-privacy">{copy.voicePrivacy}</p>
+              </div>
               <div className="intake-compose-footer">
                 <span>
                   <ShieldCheck size={14} /> Messages go to AI and are saved to
@@ -451,6 +743,8 @@ function PatientIntakePage() {
                   aria-label={copy.sendMessage}
                   disabled={
                     loading ||
+                    transcribing ||
+                    recording ||
                     loadingHistory ||
                     !canSendMessage ||
                     !content.trim()
