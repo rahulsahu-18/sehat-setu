@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "pnpm build && node --test",
     "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/index.js"
@@ -20,16 +20,20 @@
     }
   },
   "dependencies": {
-    "@types/jsonwebtoken": "^9.0.10",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.10.1"
+    "mongoose": "^9.10.1",
+    "multer": "2.4.0",
+    "pdf-parse": "2.4.5"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "2.3.0",
     "@types/node": "^22.20.2",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
