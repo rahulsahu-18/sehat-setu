@@ -1,5 +1,7 @@
 import { ArrowLeft, HeartPulse, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { translate, useLocale } from "@/lib/i18n";
 
 export function AuthShell({
   eyebrow,
@@ -12,17 +14,19 @@ export function AuthShell({
   description: string;
   children: React.ReactNode;
 }) {
+  const locale = useLocale();
   return (
     <main className="auth-page">
       <div className="auth-grid" />
       <div className="auth-shell">
+        <LanguageSelector />
         <Link className="auth-back" to="/">
-          <ArrowLeft size={15} /> Back to access options
+          <ArrowLeft size={15} /> {translate(locale, "Back to access options")}
         </Link>
         <Link
           className="auth-brand"
           to="/"
-          aria-label="Go to SehatSetu AI homepage"
+          aria-label={translate(locale, "Go to SehatSetu AI homepage")}
         >
           <span className="logo-mark">
             <HeartPulse size={17} />
@@ -39,7 +43,7 @@ export function AuthShell({
             <h1>{title}</h1>
             <p>{description}</p>
             <div className="auth-trust">
-              <ShieldCheck size={16} /> Secure access for connected care teams
+              <ShieldCheck size={16} /> {translate(locale, "Secure access for connected care teams")}
             </div>
           </section>
           <section className="auth-card">{children}</section>

@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppHeader } from "@/components/AppHeader";
 import api from "@/services/api";
+import { translate, translateStatus, useLocale } from "@/lib/i18n";
 
 type CareCase = {
   _id: string;
@@ -79,11 +80,9 @@ function queueRank(item: CareCase) {
   return item.priority === "PRIORITY" ? 2 : 3;
 }
 
-function statusLabel(status: string) {
-  return status.replaceAll("_", " ").toLowerCase();
-}
-
 function HealthcareStaffDashboard() {
+  const locale = useLocale();
+  const t = (message: string) => translate(locale, message);
   const role = readRole();
   const [cases, setCases] = useState<CareCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +98,7 @@ function HealthcareStaffDashboard() {
       setCases(response.data.data);
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message || "Unable to load care queue.",
+        t(requestError.response?.data?.message || "Unable to load care queue."),
       );
     } finally {
       setLoading(false);
@@ -156,52 +155,50 @@ function HealthcareStaffDashboard() {
         <section className="staff-dashboard-hero">
           <div>
             <span className="auth-eyebrow">
-              <span className="eyebrow-dot" /> CARE TEAM WORKSPACE
+              <span className="eyebrow-dot" /> {t("CARE TEAM WORKSPACE")}
             </span>
-            <h1>{role.toLowerCase()} dashboard</h1>
+            <h1>{t(role.toLowerCase())} {t("dashboard")}</h1>
             <p>
-              Review patient-provided information, follow up, and record
-              decisions for qualified care-team review.
+              {t("Review patient-provided information, follow up, and record decisions for qualified care-team review.")}
             </p>
           </div>
           <div className="staff-role-mark">
             <Stethoscope size={24} />
-            <span>{role}</span>
+            <span>{t(role)}</span>
           </div>
         </section>
 
-        <section className="staff-metrics" aria-label="Care queue overview">
+        <section className="staff-metrics" aria-label={t("Care queue overview")}>
           <article>
             <span>
-              <ClipboardList size={15} /> ACTIVE CASES
+              <ClipboardList size={15} /> {t("ACTIVE CASES")}
             </span>
             <strong>{loading ? "..." : cases.length}</strong>
-            <small>Assigned to you or unassigned</small>
+            <small>{t("Assigned to you or unassigned")}</small>
           </article>
           <article className={urgentCount ? "staff-metric-alert" : ""}>
             <span>
-              <AlertTriangle size={15} /> PRIORITY ATTENTION
+              <AlertTriangle size={15} /> {t("PRIORITY ATTENTION")}
             </span>
             <strong>{loading ? "..." : urgentCount}</strong>
-            <small>Review escalated and urgent cases first</small>
+            <small>{t("Review escalated and urgent cases first")}</small>
           </article>
           <article>
             <span>
-              <Clock3 size={15} /> AWAITING PATIENT
+              <Clock3 size={15} /> {t("AWAITING PATIENT")}
             </span>
             <strong>{loading ? "..." : waitingCount}</strong>
-            <small>Follow-up questions have been sent</small>
+            <small>{t("Follow-up questions have been sent")}</small>
           </article>
         </section>
 
         <section className="staff-queue-section">
           <div className="staff-queue-heading">
             <div>
-              <span className="section-label">FACILITY CARE QUEUE</span>
-              <h2>Cases for your review</h2>
+              <span className="section-label">{t("FACILITY CARE QUEUE")}</span>
+              <h2>{t("Cases for your review")}</h2>
               <p>
-                AI summaries and risk signals support review; they are not a
-                diagnosis or a substitute for clinical judgment.
+                {t("AI summaries and risk signals support review; they are not a diagnosis or a substitute for clinical judgment.")}
               </p>
             </div>
             <button
@@ -211,12 +208,12 @@ function HealthcareStaffDashboard() {
               disabled={loading}
             >
               <Activity size={15} />
-              {loading ? "Refreshing..." : "Refresh queue"}
+              {loading ? t("Refreshing...") : t("Refresh queue")}
             </button>
           </div>
 
           <div className="staff-queue-controls">
-            <div className="staff-queue-filters" aria-label="Filter cases">
+            <div className="staff-queue-filters" aria-label={t("Filter cases")}>
               {queueFilters.map((item) => (
                 <button
                   className={filter === item.value ? "is-active" : ""}
@@ -225,7 +222,7 @@ function HealthcareStaffDashboard() {
                   aria-pressed={filter === item.value}
                   onClick={() => setFilter(item.value)}
                 >
-                  {item.label}
+                  {t(item.label)}
                   {item.value === "REVIEW" && !loading && (
                     <span>{getReviewCount(cases)}</span>
                   )}
@@ -234,12 +231,12 @@ function HealthcareStaffDashboard() {
             </div>
             <label className="staff-queue-search">
               <Search size={16} />
-              <span className="sr-only">Search cases</span>
+              <span className="sr-only">{t("Search cases")}</span>
               <input
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search patient or case ID"
+                placeholder={t("Search patient or case ID")}
               />
             </label>
           </div>
@@ -252,14 +249,14 @@ function HealthcareStaffDashboard() {
                 type="button"
                 onClick={() => void loadCases()}
               >
-                Try again
+                {t("Try again")}
               </button>
             </div>
           )}
 
           {loading ? (
             <p className="staff-queue-message" role="status">
-              Loading cases for your facility...
+              {t("Loading cases for your facility...")}
             </p>
           ) : visibleCases.length ? (
             <div className="staff-case-grid">
@@ -271,13 +268,13 @@ function HealthcareStaffDashboard() {
                   <div className="staff-case-card-top">
                     <div>
                       <span className="application-role">{item.caseNo}</span>
-                      <h3>{item.patientId?.name || "Patient"}</h3>
+                      <h3>{item.patientId?.name || t("Patient")}</h3>
                       {item.patientId?.patientId && (
                         <small>{item.patientId.patientId}</small>
                       )}
                     </div>
                     <span className={`staff-priority priority-${item.priority.toLowerCase()}`}>
-                      {item.priority.toLowerCase()}
+                      {translateStatus(locale, item.priority)}
                     </span>
                   </div>
                   <div className="staff-case-tags">
@@ -287,30 +284,30 @@ function HealthcareStaffDashboard() {
                       {item.status === "ESCALATED" && (
                         <AlertTriangle size={13} />
                       )}
-                      {statusLabel(item.status)}
+                      {translateStatus(locale, item.status)}
                     </span>
-                    <span>{item.intakeLanguage} intake</span>
+                    <span>{translateStatus(locale, item.intakeLanguage)} {t("patient intake")}</span>
                   </div>
                   <p className="staff-case-next-step">
                     {item.status === "WAITING_FOR_PATIENT"
-                      ? "Waiting for a patient response to sent follow-up questions."
+                      ? t("Waiting for a patient response to sent follow-up questions.")
                       : item.status === "ESCALATED"
-                        ? "Escalated for prompt qualified review."
+                        ? t("Escalated for prompt qualified review.")
                         : reviewStatuses.has(item.status)
-                          ? "Review the patient intake and record a staff assessment."
-                          : "Open the case to review its current progress."}
+                          ? t("Review the patient intake and record a staff assessment.")
+                          : t("Open the case to review its current progress.")}
                   </p>
                   <div className="staff-case-card-footer">
                     <span>
                       {item.assignedStaffId
                         ? `Assigned to ${typeof item.assignedStaffId === "object" ? item.assignedStaffId.name : "you"}`
-                        : "Available to claim"}
+                        : t("Available to claim")}
                     </span>
                     <Link
                       className="text-link"
                       to={`/staff/cases/${item._id}`}
                     >
-                      Review case <ArrowRight size={15} />
+                      {t("Review case")} <ArrowRight size={15} />
                     </Link>
                   </div>
                 </article>
@@ -319,24 +316,22 @@ function HealthcareStaffDashboard() {
           ) : cases.length ? (
             <section className="staff-queue-message">
               <CheckCircle2 size={22} />
-              <h3>No cases match this view</h3>
-              <p>Change the filter or search term to see other cases.</p>
+              <h3>{t("No cases match this view")}</h3>
+              <p>{t("Change the filter or search term to see other cases.")}</p>
             </section>
           ) : (
             <section className="staff-empty-state">
               <div className="staff-empty-icon">
                 <Users size={24} />
               </div>
-              <span className="section-label">CLINICAL QUEUE</span>
-              <h2>Your care queue is clear.</h2>
+              <span className="section-label">{t("CLINICAL QUEUE")}</span>
+              <h2>{t("Your care queue is clear.")}</h2>
               <p>
-                Cases submitted to your facility will appear here. Review
-                synthetic demo cases only and keep a qualified human in the
-                decision loop.
+                {t("Cases submitted to your facility will appear here. Review synthetic demo cases only and keep a qualified human in the decision loop.")}
               </p>
               <div className="staff-secure">
                 <ShieldCheck size={15} />
-                Human review remains part of every decision
+                {t("Human review remains part of every decision")}
               </div>
             </section>
           )}

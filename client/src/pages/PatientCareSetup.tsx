@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { FormMessage } from "@/components/AuthShell";
 import { AppHeader } from "@/components/AppHeader";
-import { detectLocale, getPatientCopy } from "@/lib/i18n";
+import { detectLocale, getPatientCopy, translate, useLocale } from "@/lib/i18n";
 
 type Facility = { _id: string; name: string; type: string; location: string };
 type Language = "english" | "hindi" | "odia";
@@ -21,9 +21,9 @@ function PatientCareSetup() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
-  const copy = getPatientCopy(
-    language === "hindi" ? "hi" : language === "odia" ? "or" : "en",
-  );
+  const locale = useLocale();
+  const t = (message: string) => translate(locale, message);
+  const copy = getPatientCopy(locale);
 
   useEffect(() => {
     const loadFacilities = async () => {
@@ -67,20 +67,19 @@ function PatientCareSetup() {
       <div className="care-setup-inner">
         <section className="care-setup-intro">
           <span className="auth-eyebrow">
-            <span className="eyebrow-dot" /> PATIENT CARE SPACE
+            <span className="eyebrow-dot" /> {t("PATIENT CARE SPACE")}
           </span>
           <h1>{copy.setupTitle}</h1>
           <p>{copy.setupBody}</p>
           <div className="auth-trust">
-            <ShieldCheck size={16} /> Your selection is attached to a secure
-            care case
+            <ShieldCheck size={16} /> {t("Your selection is attached to a secure care case")}
           </div>
         </section>
         <section className="care-setup-card">
           <div className="auth-card-heading">
-            <span>01 / CARE SETUP</span>
-            <h2>Choose your preferences</h2>
-            <p>You can begin sharing your concern after this step.</p>
+            <span>{t("01 / CARE SETUP")}</span>
+            <h2>{t("Choose your preferences")}</h2>
+            <p>{t("You can begin sharing your concern after this step.")}</p>
           </div>
           <FormMessage error={error} success="" />
           <form className="auth-form" onSubmit={startIntake}>
@@ -93,7 +92,7 @@ function PatientCareSetup() {
               disabled={loading}
             >
               <option value="">
-                {loading ? "Loading facilities..." : copy.chooseFacility}
+                {loading ? t("Loading facilities...") : copy.chooseFacility}
               </option>
               {facilities.map((facility) => (
                 <option key={facility._id} value={facility._id}>
@@ -128,7 +127,7 @@ function PatientCareSetup() {
                 starting || loading || facilities.length === 0 || !consent
               }
             >
-              {starting ? "Preparing intake..." : copy.startIntake}{" "}
+              {starting ? t("Preparing intake...") : copy.startIntake}{" "}
               <ArrowRight size={16} />
             </button>
           </form>

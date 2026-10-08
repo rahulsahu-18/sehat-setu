@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { AuthShell, FormMessage } from "@/components/AuthShell";
+import { translate, useLocale } from "@/lib/i18n";
 
 type SignInDataType = {
   phone: string;
@@ -18,6 +19,8 @@ type SignUpDataType = {
 
 function PatientAuth() {
   const navigate = useNavigate();
+  const locale = useLocale();
+  const t = (message: string) => translate(locale, message);
   const [open, setOpen] = useState(false);
 
   const [signinData, setSigninData] = useState<SignInDataType>({
@@ -51,7 +54,7 @@ function PatientAuth() {
       localStorage.setItem("authUser", JSON.stringify(response.data.data.user));
       navigate("/patient/setup");
     } catch (error: any) {
-      setError(error.response?.data?.message || "Unable to sign in.");
+      setError(t(error.response?.data?.message || "Unable to sign in."));
     } finally {
       setLoading(false);
     }
@@ -74,7 +77,7 @@ function PatientAuth() {
       localStorage.setItem("authUser", JSON.stringify(response.data.data.user));
       navigate("/patient/setup");
     } catch (error: any) {
-      setError(error.response?.data?.message || "Unable to create account.");
+      setError(t(error.response?.data?.message || "Unable to create account."));
     } finally {
       setLoading(false);
     }
@@ -82,19 +85,19 @@ function PatientAuth() {
 
   return (
     <AuthShell
-      eyebrow="PATIENT ACCESS"
-      title="Care that starts with you."
-      description="Create a secure patient account to keep your care journey connected."
+      eyebrow={t("PATIENT ACCESS")}
+      title={t("Care that starts with you.")}
+      description={t("Create a secure patient account to keep your care journey connected.")}
     >
       <FormMessage error={error} success={success} />
       {open ? (
         <form className="auth-form" onSubmit={handleSignUp}>
           <div className="auth-card-heading">
-            <span>01 / PROFILE</span>
-            <h2>Create patient account</h2>
-            <p>A few details help us personalize your care.</p>
+            <span>{t("01 / PROFILE")}</span>
+            <h2>{t("Create patient account")}</h2>
+            <p>{t("A few details help us personalize your care.")}</p>
           </div>
-          <label htmlFor="name">Full name</label>
+          <label htmlFor="name">{t("Full name")}</label>
           <input
             type="text"
             id="name"
@@ -107,7 +110,7 @@ function PatientAuth() {
             }
             required
           />
-          <label htmlFor="signupPhone">Phone number</label>
+          <label htmlFor="signupPhone">{t("Phone number")}</label>
           <input
             type="tel"
             id="signupPhone"
@@ -122,7 +125,7 @@ function PatientAuth() {
           />
           <div className="auth-form-row">
             <div>
-              <label htmlFor="gender">Gender</label>
+              <label htmlFor="gender">{t("Gender")}</label>
               <select
                 id="gender"
                 value={signupData.gender}
@@ -131,14 +134,14 @@ function PatientAuth() {
                 }
                 required
               >
-                <option value="">Select</option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-                <option value="other">Other</option>
+                <option value="">{t("Select")}</option>
+                <option value="female">{t("Female")}</option>
+                <option value="male">{t("Male")}</option>
+                <option value="other">{t("Other")}</option>
               </select>
             </div>
             <div>
-              <label htmlFor="language">Preferred language</label>
+              <label htmlFor="language">{t("Preferred language")}</label>
               <select
                 id="language"
                 value={signupData.language}
@@ -150,13 +153,13 @@ function PatientAuth() {
                 }
                 required
               >
-                <option value="english">English</option>
-                <option value="hindi">Hindi</option>
-                <option value="odia">Odia</option>
+                <option value="english">{t("English")}</option>
+                <option value="hindi">{t("Hindi")}</option>
+                <option value="odia">{t("Odia")}</option>
               </select>
             </div>
           </div>
-          <label htmlFor="signupPassword">Password</label>
+          <label htmlFor="signupPassword">{t("Password")}</label>
           <input
             type="password"
             id="signupPassword"
@@ -175,11 +178,11 @@ function PatientAuth() {
             type="submit"
             disabled={loading}
           >
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? t("Creating account...") : t("Create account")}
           </button>
 
           <p className="auth-switch">
-            Already have an account?{" "}
+            {t("Already have an account?")}{" "}
             <button
               type="button"
               onClick={() => {
@@ -188,18 +191,18 @@ function PatientAuth() {
                 setSuccess("");
               }}
             >
-              Sign in
+              {t("Sign in")}
             </button>
           </p>
         </form>
       ) : (
         <form className="auth-form" onSubmit={handleSignIn}>
           <div className="auth-card-heading">
-            <span>01 / SIGN IN</span>
-            <h2>Welcome back</h2>
-            <p>Continue to your connected care space.</p>
+            <span>{t("01 / SIGN IN")}</span>
+            <h2>{t("Welcome back")}</h2>
+            <p>{t("Continue to your connected care space.")}</p>
           </div>
-          <label htmlFor="phoneNo">Phone number or email</label>
+          <label htmlFor="phoneNo">{t("Phone number or email")}</label>
           <input
             type="text"
             id="phoneNo"
@@ -212,7 +215,7 @@ function PatientAuth() {
             }
             required
           />
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{t("Password")}</label>
           <input
             type="password"
             id="password"
@@ -230,11 +233,11 @@ function PatientAuth() {
             type="submit"
             disabled={loading}
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? t("Signing in...") : t("Sign in")}
           </button>
 
           <p className="auth-switch">
-            Don't have an account?{" "}
+            {t("Don't have an account?")}{" "}
             <button
               type="button"
               onClick={() => {
@@ -243,7 +246,7 @@ function PatientAuth() {
                 setSuccess("");
               }}
             >
-              Create an account
+              {t("Create an account")}
             </button>
           </p>
         </form>

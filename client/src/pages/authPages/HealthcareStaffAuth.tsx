@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { AuthShell, FormMessage } from "@/components/AuthShell";
+import { translate, useLocale } from "@/lib/i18n";
 
 type Facility = {
   _id: string;
@@ -13,6 +14,8 @@ type Facility = {
 type StaffRole = "DOCTOR" | "NURSE";
 
 function HealthcareStaffAuth() {
+  const locale = useLocale();
+  const t = (message: string) => translate(locale, message);
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(false);
 
@@ -47,7 +50,7 @@ function HealthcareStaffAuth() {
 
         setFacilities(response.data.data);
       } catch {
-        setError("Failed to load facilities");
+        setError(t("Failed to load facilities"));
       } finally {
         setLoadingFacilities(false);
       }
@@ -66,7 +69,7 @@ function HealthcareStaffAuth() {
     try {
       if (registerData.identifier.includes("@")) {
         setError(
-          "Use a phone number for staff applications. You can use email when you sign in.",
+          t("Use a phone number for staff applications. You can use email when you sign in."),
         );
         setLoading(false);
         return;
@@ -83,7 +86,7 @@ function HealthcareStaffAuth() {
         facilityId: registerData.facilityId,
       });
 
-      setSuccess("Application submitted. Wait for facility admin approval.");
+      setSuccess(t("Application submitted. Wait for facility admin approval."));
 
       setRegisterData({
         name: "",
@@ -93,7 +96,7 @@ function HealthcareStaffAuth() {
         facilityId: "",
       });
     } catch (error: any) {
-      setError(error.response?.data?.message || "Failed to submit application");
+      setError(t(error.response?.data?.message || "Failed to submit application"));
     } finally {
       setLoading(false);
     }
@@ -112,13 +115,13 @@ function HealthcareStaffAuth() {
       localStorage.setItem("token", response.data.data.token);
       localStorage.setItem("authUser", JSON.stringify(response.data.data.user));
 
-      setSuccess("Login successful!");
+      setSuccess(t("Login successful!"));
       navigate("/staff/dashboard");
 
       // Navigate to staff dashboard
       // navigate("/staff/dashboard");
     } catch (error: any) {
-      setError(error.response?.data?.message || "Login failed");
+      setError(t(error.response?.data?.message || "Login failed"));
     } finally {
       setLoading(false);
     }
@@ -126,19 +129,19 @@ function HealthcareStaffAuth() {
 
   return (
     <AuthShell
-      eyebrow="CARE TEAM ACCESS"
-      title="Bring your expertise into the loop."
-      description="Apply to a connected facility or sign in to support faster, safer care decisions."
+      eyebrow={t("CARE TEAM ACCESS")}
+      title={t("Bring your expertise into the loop.")}
+      description={t("Apply to a connected facility or sign in to support faster, safer care decisions.")}
     >
       <FormMessage error={error} success={success} />
 
       {isLogin ? (
         <form className="auth-form" onSubmit={handleLogin}>
-          <h2>Staff Login</h2>
+          <h2>{t("Staff Login")}</h2>
 
           <input
             type="text"
-            placeholder="Email or Phone"
+            placeholder={t("Email or Phone")}
             value={loginData.identifier}
             onChange={(e) =>
               setLoginData({
@@ -151,7 +154,7 @@ function HealthcareStaffAuth() {
 
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t("Password")}
             value={loginData.password}
             onChange={(e) =>
               setLoginData({ ...loginData, password: e.target.value })
@@ -169,7 +172,7 @@ function HealthcareStaffAuth() {
             }
             required
           >
-            <option value="">Select Facility</option>
+            <option value="">{t("Select Facility")}</option>
 
             {facilities.map((facility) => (
               <option key={facility._id} value={facility._id}>
@@ -183,10 +186,10 @@ function HealthcareStaffAuth() {
             type="submit"
             disabled={loading}
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading ? t("Logging in...") : t("Login")}
           </button>
 
-          <p>Don't have an account?</p>
+          <p>{t("Don't have an account?")}</p>
 
           <button
             className="button button-secondary auth-submit"
@@ -197,16 +200,16 @@ function HealthcareStaffAuth() {
               setSuccess("");
             }}
           >
-            Apply as Staff
+            {t("Apply as Staff")}
           </button>
         </form>
       ) : (
         <form className="auth-form" onSubmit={handleRegister}>
-          <h2>Apply as Healthcare Staff</h2>
+          <h2>{t("Apply as Healthcare Staff")}</h2>
 
           <input
             type="text"
-            placeholder="Full Name"
+            placeholder={t("Full Name")}
             value={registerData.name}
             onChange={(e) =>
               setRegisterData({
@@ -219,7 +222,7 @@ function HealthcareStaffAuth() {
 
           <input
             type="text"
-            placeholder="Phone number"
+            placeholder={t("Phone number")}
             value={registerData.identifier}
             onChange={(e) =>
               setRegisterData({
@@ -232,7 +235,7 @@ function HealthcareStaffAuth() {
 
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t("Password")}
             minLength={8}
             value={registerData.password}
             onChange={(e) =>
@@ -254,11 +257,11 @@ function HealthcareStaffAuth() {
             }
             required
           >
-            <option value="">Select Role</option>
+            <option value="">{t("Select Role")}</option>
 
-            <option value="DOCTOR">Doctor</option>
+            <option value="DOCTOR">{t("Doctor")}</option>
 
-            <option value="NURSE">Nurse</option>
+            <option value="NURSE">{t("Nurse")}</option>
           </select>
 
           <select
@@ -271,10 +274,10 @@ function HealthcareStaffAuth() {
             }
             required
           >
-            <option value="">Select Facility</option>
+            <option value="">{t("Select Facility")}</option>
 
             {loadingFacilities ? (
-              <option disabled>Loading...</option>
+              <option disabled>{t("Loading...")}</option>
             ) : (
               facilities.map((facility) => (
                 <option key={facility._id} value={facility._id}>

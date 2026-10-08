@@ -874,13 +874,14 @@ export const reviewStaffCase = async (req: AuthRequest, res: Response) => {
       .json({ success: false, message: "Invalid case status" });
   }
   if (
-    typeof reason !== "string" ||
-    reason.trim().length < 3 ||
-    reason.length > 2000
+    reason !== undefined &&
+    (typeof reason !== "string" ||
+      reason.trim().length < 3 ||
+      reason.length > 2000)
   ) {
     return res
       .status(400)
-      .json({ success: false, message: "Reviewer assessment is required" });
+      .json({ success: false, message: "Review notes must be 3–2,000 characters" });
   }
   if (
     guidance !== undefined &&
@@ -930,7 +931,7 @@ export const reviewStaffCase = async (req: AuthRequest, res: Response) => {
     staffId: staff._id,
     priority: priority as DecisionPriority,
     action: action as DecisionAction,
-    reason: reason.trim(),
+    ...(typeof reason === "string" ? { reason: reason.trim() } : {}),
     ...(guidance?.trim() ? { guidance: guidance.trim() } : {}),
   });
   await decision.save();

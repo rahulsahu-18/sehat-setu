@@ -14,7 +14,13 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import api from "@/services/api";
 import { FormMessage } from "@/components/AuthShell";
 import { AppHeader } from "@/components/AppHeader";
-import { getPatientCopy } from "@/lib/i18n";
+import {
+  getPatientCopy,
+  localeTag,
+  translate,
+  translateStatus,
+  useLocale,
+} from "@/lib/i18n";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type CareTeamGuidance = { guidance: string; createdAt: string };
@@ -45,6 +51,8 @@ type IntakeSummary = {
 };
 
 function PatientIntakePage() {
+  const locale = useLocale();
+  const t = (message: string) => translate(locale, message);
   const navigate = useNavigate();
   const { caseId } = useParams();
   const [activeCase, setActiveCase] = useState<{
@@ -80,13 +88,7 @@ function PatientIntakePage() {
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const discardRecordingRef = useRef(false);
   const voiceRequestRef = useRef<AbortController | null>(null);
-  const copy = getPatientCopy(
-    activeCase?.intakeLanguage === "hindi"
-      ? "hi"
-      : activeCase?.intakeLanguage === "odia"
-        ? "or"
-        : "en",
-  );
+  const copy = getPatientCopy(locale);
   const canSendMessage = [
     "NEW",
     "AI_PROCESSING",
@@ -180,8 +182,8 @@ function PatientIntakePage() {
         if (cancelled) return;
         setActiveCase(null);
         setError(
-          requestError.response?.data?.message ||
-            "Unable to load your intake conversation.",
+          t(requestError.response?.data?.message ||
+            "Unable to load your intake conversation."),
         );
       })
       .finally(() => {
@@ -195,7 +197,7 @@ function PatientIntakePage() {
   const submitIntake = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!caseId) {
-      setError("Choose a care case before submitting an intake.");
+      setError(t("Choose a care case before submitting an intake."));
       return;
     }
     setLoading(true);
@@ -238,7 +240,7 @@ function PatientIntakePage() {
       setInputMode("TEXT");
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message || "Unable to submit your intake.",
+        t(requestError.response?.data?.message || "Unable to submit your intake."),
       );
     } finally {
       setLoading(false);
@@ -418,7 +420,7 @@ function PatientIntakePage() {
       if (reportInputRef.current) reportInputRef.current.value = "";
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message || "Unable to process this report.",
+        t(requestError.response?.data?.message || "Unable to process this report."),
       );
     } finally {
       setLoading(false);
@@ -434,7 +436,7 @@ function PatientIntakePage() {
       setConsentAccepted(true);
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message || "Unable to save consent.",
+        t(requestError.response?.data?.message || "Unable to save consent."),
       );
     } finally {
       setLoading(false);
@@ -451,17 +453,17 @@ function PatientIntakePage() {
           className="intake-back"
           onClick={() => navigate("/patient/setup")}
         >
-          <ArrowLeft size={15} /> Change care setup
+          <ArrowLeft size={15} /> {t("Change care setup")}
         </button>
         <section className="intake-heading">
           <span className="auth-eyebrow">
-            <span className="eyebrow-dot" /> AI INTAKE /{" "}
-            {activeCase?.caseNo || "LOADING CASE"}
+            <span className="eyebrow-dot" /> {t("AI INTAKE")} /{" "}
+            {activeCase?.caseNo || t("LOADING CASE")}
           </span>
           <h1>{copy.intakeTitle}</h1>
           <p>
             {copy.intakeBody} Selected language:{" "}
-            <strong>{activeCase?.intakeLanguage || "English"}</strong>.
+            <strong>{translateStatus(locale, activeCase?.intakeLanguage || "English")}</strong>.
           </p>
         </section>
         {activeCase?.priority === "URGENT" && (
@@ -490,12 +492,14 @@ function PatientIntakePage() {
             className="patient-guidance-panel"
             aria-labelledby="patient-guidance-title"
           >
-            <span className="section-label">MESSAGE FROM YOUR CARE TEAM</span>
+            <span className="section-label">{t("MESSAGE FROM YOUR CARE TEAM")}</span>
             <h2 id="patient-guidance-title">{copy.guidanceTitle}</h2>
             {careTeamGuidance.map((item, index) => (
               <article key={`${item.createdAt}-${index}`}>
                 <p>{item.guidance}</p>
-                <time>{new Date(item.createdAt).toLocaleString()}</time>
+                <time>
+                  {new Date(item.createdAt).toLocaleString(localeTag(locale))}
+                </time>
               </article>
             ))}
           </section>
@@ -505,17 +509,17 @@ function PatientIntakePage() {
             className="patient-guidance-panel patient-referral-slip"
             aria-labelledby="patient-referral-title"
           >
-            <span className="section-label">REFERRAL HANDOFF</span>
-            <h2 id="patient-referral-title">Referral slip from your care team</h2>
+            <span className="section-label">{t("REFERRAL HANDOFF")}</span>
+            <h2 id="patient-referral-title">{t("Referral slip from your care team")}</h2>
             <dl>
               <div>
-                <dt>Patient / case</dt>
+                <dt>{t("Patient / case")}</dt>
                 <dd>
                   {referralNote.patientName} · {referralNote.caseNo}
                 </dd>
               </div>
               <div>
-                <dt>Referring facility</dt>
+                <dt>{t("Referring facility")}</dt>
                 <dd>
                   {referralNote.referringFacility}
                   {referralNote.referringFacilityLocation
@@ -524,29 +528,27 @@ function PatientIntakePage() {
                 </dd>
               </div>
               <div>
-                <dt>Receiving facility / unit</dt>
+                <dt>{t("Receiving facility / unit")}</dt>
                 <dd>{referralNote.receivingFacility}</dd>
               </div>
               <div>
-                <dt>Clinical question / reason for referral</dt>
+                <dt>{t("Clinical question / reason for referral")}</dt>
                 <dd>{referralNote.clinicalQuestion}</dd>
               </div>
               <div>
-                <dt>Next steps from your clinician</dt>
+                <dt>{t("Next steps from your clinician")}</dt>
                 <dd>{referralNote.patientInstructions}</dd>
               </div>
             </dl>
             <p>
-              This patient slip was explicitly shared by your care team. It is
-              not an appointment confirmation. Contact the receiving facility
-              to confirm availability and any arrangements.
+              {t("This patient slip was explicitly shared by your care team. It is not an appointment confirmation. Contact the receiving facility to confirm availability and any arrangements.")}
             </p>
             <button
               className="button button-secondary patient-referral-print-button"
               type="button"
               onClick={() => window.print()}
             >
-              Print / save referral information
+              {t("Print / save referral information")}
             </button>
           </section>
         )}
@@ -580,7 +582,7 @@ function PatientIntakePage() {
               <span>{copy.intakeMode}</span>
               {summary?.complete && (
                 <span className="intake-complete">
-                  <CheckCircle2 size={14} /> Summary ready
+                  <CheckCircle2 size={14} /> {t("Summary ready")}
                 </span>
               )}
             </div>
@@ -595,8 +597,7 @@ function PatientIntakePage() {
                     ))}
                     <p>{summary.deterministicSafetyFlags[0]?.instruction}</p>
                     <small>
-                      This is a prototype warning, not a diagnosis. Follow the
-                      facility emergency protocol.
+                      {t("This is a prototype warning, not a diagnosis. Follow the facility emergency protocol.")}
                     </small>
                   </div>
                 </div>
@@ -617,7 +618,7 @@ function PatientIntakePage() {
                     key={`${index}-${message.role}`}
                   >
                     <span>
-                      {message.role === "assistant" ? "CARE ASSISTANT" : "YOU"}
+                      {message.role === "assistant" ? t("CARE ASSISTANT") : t("YOU")}
                     </span>
                     <p>{message.content}</p>
                     {message.role === "assistant" && (
@@ -660,7 +661,7 @@ function PatientIntakePage() {
             )}
             <form className="intake-compose" onSubmit={submitIntake}>
               <label className="sr-only" htmlFor="concern">
-                Your message
+                {t("Your message")}
               </label>
               <textarea
                 id="concern"
@@ -825,7 +826,7 @@ function PatientIntakePage() {
                   <article key={`${item.when}-${index}`}>
                     <span>{item.when}</span>
                     <p>{item.event}</p>
-                    <small>Source: {item.source}</small>
+                    <small>{t("Source:")} {item.source}</small>
                   </article>
                 ))}
               </div>
@@ -841,7 +842,7 @@ function PatientIntakePage() {
               </div>
             )}
             <div className="intake-summary-foot">
-              AI-generated · For care-team review
+              {t("AI-generated · For care-team review")}
             </div>
           </aside>
         </div>

@@ -207,6 +207,47 @@ test("requires patient guidance before completing a case", async () => {
   assert.equal(caseRecord.status, "WAITING_FOR_REVIEW");
 });
 
+test("records a review without requiring internal assessment notes", async () => {
+  const staffId = "64b000000000000000000061";
+  const facilityId = "64b000000000000000000062";
+  const caseId = "64b000000000000000000063";
+  const caseRecord = {
+    _id: new Types.ObjectId(caseId),
+    facilityId: new Types.ObjectId(facilityId),
+    status: "WAITING_FOR_REVIEW",
+    priority: "ROUTINE",
+    assignedStaffId: new Types.ObjectId(staffId),
+    async save() {},
+  };
+  let savedDecision;
+  patch(User, "findById", () => ({ select: async () => staff(staffId, facilityId) }));
+  patch(Case, "findOne", async () => caseRecord);
+  patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
+  patch(Question, "updateMany", async () => ({ modifiedCount: 0 }));
+  patch(Decision.prototype, "save", async function save() {
+    savedDecision = this;
+    return this;
+  });
+
+  const res = responseRecorder();
+  await reviewController.reviewStaffCase(
+    {
+      user: { userId: staffId, role: "DOCTOR", facilityId },
+      params: { caseId },
+      body: {
+        action: "CONTINUE_EVALUATION",
+        priority: "ROUTINE",
+        status: "ACTIVE",
+      },
+    },
+    res,
+  );
+
+  assert.equal(res.statusCode, 201);
+  assert.equal(caseRecord.status, "ACTIVE");
+  assert.equal(savedDecision.reason, undefined);
+});
+
 test("queues clinician-authored questions and sends the approved bundle", async () => {
   const staffId = "64b000000000000000000061";
   const facilityId = "64b000000000000000000062";

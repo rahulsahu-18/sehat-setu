@@ -4,6 +4,15 @@ const languageCodes: Record<string, string> = {
   odia: "or",
 };
 
+const languagePrompts: Record<string, string> = {
+  english:
+    "Transcribe the speech in English. Preserve the words spoken; do not interpret or add information.",
+  hindi:
+    "Transcribe the speech in Hindi using Devanagari script. Preserve the words spoken; do not translate, interpret, or add information.",
+  odia:
+    "Transcribe the speech in Odia (ଓଡ଼ିଆ) using Odia script. Preserve the words spoken; do not translate, interpret, or add information.",
+};
+
 const extensionsByMimeType: Record<string, string> = {
   "audio/aac": "aac",
   "audio/flac": "flac",
@@ -59,7 +68,7 @@ export async function transcribeIntakeAudio(
   form.append("language", languageCode);
   form.append(
     "prompt",
-    "Transcribe a patient's healthcare intake statement accurately. Preserve the words spoken; do not interpret or add information.",
+    `Transcribe a patient's healthcare intake statement accurately. ${languagePrompts[language]}`,
   );
 
   let response: Response;
@@ -80,6 +89,26 @@ export async function transcribeIntakeAudio(
   }
 
   if (!response.ok) {
+    let providerError = "";
+    try {
+      const payload: {
+        error?: { message?: unknown; code?: unknown; type?: unknown };
+      } = await response.json();
+      const error = payload.error;
+      if (error && typeof error === "object") {
+        providerError = [
+          error.message,
+          error.code,
+          error.type,
+        ]
+          .filter((value): value is string => typeof value === "string")
+          .join(" ")
+          .toLowerCase();
+      }
+    } catch {
+      // Fall through to the status-based error below for non-JSON responses.
+    }
+
     switch (response.status) {
       case 401:
         throw new Error(
@@ -99,8 +128,13 @@ export async function transcribeIntakeAudio(
             "Voice transcription is temporarily unavailable. Please try again.",
           );
         }
+        if (/language|unsupported_value/.test(providerError)) {
+          throw new Error(
+            `Voice transcription does not support ${language} with the configured model. Choose whisper-1 or type your message.`,
+          );
+        }
         throw new Error(
-          "The audio could not be transcribed. Try a shorter recording with less background noise.",
+          `Voice transcription was rejected by the service (HTTP ${response.status}). Try a short recording in a supported audio format; if this continues, check the server's transcription model and account access.`,
         );
     }
   }

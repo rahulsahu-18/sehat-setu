@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { AuthShell, FormMessage } from "@/components/AuthShell";
+import { translate, useLocale } from "@/lib/i18n";
 
 enum FacilityType {
   GOVERNMENT_HOSPITAL = "GOVERNMENT_HOSPITAL",
@@ -28,6 +29,8 @@ type LoginData = {
 };
 
 function FacilityRedg() {
+  const locale = useLocale();
+  const t = (message: string) => translate(locale, message);
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(false);
 
@@ -81,10 +84,10 @@ function FacilityRedg() {
         JSON.stringify(response.data.data.admin),
       );
 
-      setSuccess("Facility registered successfully!");
+      setSuccess(t("Facility registered successfully!"));
       navigate("/facility/dashboard");
     } catch (error: any) {
-      setError(error.response?.data?.message || "Failed to register facility");
+      setError(t(error.response?.data?.message || "Failed to register facility"));
     } finally {
       setLoading(false);
     }
@@ -108,10 +111,10 @@ function FacilityRedg() {
       localStorage.setItem("token", token);
       localStorage.setItem("authUser", JSON.stringify(response.data.data.user));
 
-      setSuccess("Facility admin login successful!");
+      setSuccess(t("Facility admin login successful!"));
       navigate("/facility/dashboard");
     } catch (error: any) {
-      setError(error.response?.data?.message || "Failed to login");
+      setError(t(error.response?.data?.message || "Failed to login"));
     } finally {
       setLoading(false);
     }
@@ -119,9 +122,9 @@ function FacilityRedg() {
 
   return (
     <AuthShell
-      eyebrow="FACILITY ACCESS"
-      title="Build a stronger care network."
-      description="Register your facility or sign in to coordinate the people and decisions that keep care moving."
+      eyebrow={t("FACILITY ACCESS")}
+      title={t("Build a stronger care network.")}
+      description={t("Register your facility or sign in to coordinate the people and decisions that keep care moving.")}
     >
       <FormMessage error={error} success={success} />
 
@@ -131,10 +134,10 @@ function FacilityRedg() {
         // =========================
 
         <form className="auth-form" onSubmit={handleLogin}>
-          <h3>Facility Admin Login</h3>
+          <h3>{t("Facility Admin Login")}</h3>
 
           <div>
-            <label htmlFor="identifier">Email / Phone:</label>
+            <label htmlFor="identifier">{t("Email / Phone:")}</label>
 
             <input
               type="text"
@@ -146,13 +149,13 @@ function FacilityRedg() {
                   identifier: e.target.value,
                 })
               }
-              placeholder="Enter email or phone"
+              placeholder={t("Enter email or phone")}
               required
             />
           </div>
 
           <div>
-            <label htmlFor="loginPassword">Password:</label>
+            <label htmlFor="loginPassword">{t("Password:")}</label>
 
             <input
               type="password"
@@ -164,7 +167,7 @@ function FacilityRedg() {
                   password: e.target.value,
                 })
               }
-              placeholder="Enter password"
+              placeholder={t("Enter password")}
               required
             />
           </div>
@@ -174,11 +177,11 @@ function FacilityRedg() {
             type="submit"
             disabled={loading}
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading ? t("Logging in...") : t("Login")}
           </button>
 
           <p>
-            Don't have a facility account?{" "}
+            {t("Don't have a facility account?")}{" "}
             <button
               className="auth-link-button"
               type="button"
@@ -188,7 +191,7 @@ function FacilityRedg() {
                 setSuccess("");
               }}
             >
-              Register Facility
+              {t("Register Facility")}
             </button>
           </p>
         </form>
@@ -198,12 +201,12 @@ function FacilityRedg() {
         // =========================
 
         <form className="auth-form" onSubmit={handleRegister}>
-          <h3>Register Facility</h3>
+          <h3>{t("Register Facility")}</h3>
 
-          <h4>Facility Information</h4>
+          <h4>{t("Facility Information")}</h4>
 
           <div>
-            <label htmlFor="facilityName">Facility Name:</label>
+            <label htmlFor="facilityName">{t("Facility Name:")}</label>
 
             <input
               type="text"
@@ -215,13 +218,13 @@ function FacilityRedg() {
                   facilityName: e.target.value,
                 })
               }
-              placeholder="Enter facility name"
+              placeholder={t("Enter facility name")}
               required
             />
           </div>
 
           <div>
-            <label htmlFor="facilityType">Facility Type:</label>
+            <label htmlFor="facilityType">{t("Facility Type:")}</label>
 
             <select
               id="facilityType"
@@ -234,34 +237,34 @@ function FacilityRedg() {
               }
               required
             >
-              <option value="">Select facility type</option>
+              <option value="">{t("Select facility type")}</option>
 
               <option value={FacilityType.GOVERNMENT_HOSPITAL}>
-                Government Hospital
+                {t("Government Hospital")}
               </option>
 
-              <option value={FacilityType.PHC}>PHC</option>
+              <option value={FacilityType.PHC}>{t("PHC")}</option>
 
               <option value={FacilityType.CAMPUS_HEALTH_CENTER}>
-                Campus Health Center
+                {t("Campus Health Center")}
               </option>
 
               <option value={FacilityType.COMPANY_CLINIC}>
-                Company Clinic
+                {t("Company Clinic")}
               </option>
 
               <option value={FacilityType.INDUSTRIAL_HEALTH_UNIT}>
-                Industrial Health Unit
+                {t("Industrial Health Unit")}
               </option>
 
               <option value={FacilityType.PUBLIC_HEALTH_CAMP}>
-                Public Health Camp
+                {t("Public Health Camp")}
               </option>
             </select>
           </div>
 
           <div>
-            <label htmlFor="location">Location:</label>
+            <label htmlFor="location">{t("Location:")}</label>
 
             <input
               type="text"
@@ -273,15 +276,15 @@ function FacilityRedg() {
                   location: e.target.value,
                 })
               }
-              placeholder="Enter facility location"
+              placeholder={t("Enter facility location")}
               required
             />
           </div>
 
-          <h4>Facility Admin Information</h4>
+          <h4>{t("Facility Admin Information")}</h4>
 
           <div>
-            <label htmlFor="adminName">Admin Name:</label>
+            <label htmlFor="adminName">{t("Admin Name:")}</label>
 
             <input
               type="text"
@@ -293,13 +296,13 @@ function FacilityRedg() {
                   adminName: e.target.value,
                 })
               }
-              placeholder="Enter admin name"
+              placeholder={t("Enter admin name")}
               required
             />
           </div>
 
           <div>
-            <label htmlFor="email">Email:</label>
+            <label htmlFor="email">{t("Email:")}</label>
 
             <input
               type="email"
@@ -311,13 +314,13 @@ function FacilityRedg() {
                   email: e.target.value,
                 })
               }
-              placeholder="Enter admin email"
+              placeholder={t("Enter admin email")}
               required
             />
           </div>
 
           <div>
-            <label htmlFor="phoneNo">Phone No:</label>
+            <label htmlFor="phoneNo">{t("Phone No:")}</label>
 
             <input
               type="tel"
@@ -329,13 +332,13 @@ function FacilityRedg() {
                   phoneNo: e.target.value,
                 })
               }
-              placeholder="Enter phone number"
+              placeholder={t("Enter phone number")}
               required
             />
           </div>
 
           <div>
-            <label htmlFor="registerPassword">Password:</label>
+            <label htmlFor="registerPassword">{t("Password:")}</label>
 
             <input
               type="password"
@@ -347,7 +350,7 @@ function FacilityRedg() {
                   password: e.target.value,
                 })
               }
-              placeholder="Minimum 8 characters"
+              placeholder={t("Minimum 8 characters")}
               required
               minLength={8}
             />
@@ -358,11 +361,11 @@ function FacilityRedg() {
             type="submit"
             disabled={loading}
           >
-            {loading ? "Registering..." : "Register Facility"}
+            {loading ? t("Registering...") : t("Register Facility")}
           </button>
 
           <p>
-            Already have a facility account?{" "}
+            {t("Already have a facility account?")}{" "}
             <button
               className="auth-link-button"
               type="button"
@@ -372,7 +375,7 @@ function FacilityRedg() {
                 setSuccess("");
               }}
             >
-              Login as Admin
+              {t("Login as Admin")}
             </button>
           </p>
         </form>

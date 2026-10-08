@@ -2299,6 +2299,31 @@ footer .logo {
   margin: 0 auto;
   padding: 28px 0;
 }
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.app-language-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #a5eade;
+}
+.app-language-selector select {
+  max-width: 120px;
+  border: 1px solid rgba(191, 234, 225, 0.24);
+  border-radius: 6px;
+  padding: 7px 24px 7px 9px;
+  color: #eef8f5;
+  background: #0a2637;
+  font: 500 11px "Manrope", sans-serif;
+}
+.auth-shell > .app-language-selector {
+  position: absolute;
+  top: 20px;
+  right: 0;
+}
 .app-header .auth-brand {
   margin-top: 0;
 }
@@ -3278,7 +3303,8 @@ footer .logo {
 .staff-case-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(290px, 0.8fr);
-  align-items: start;
+  align-items: stretch;
+  height: clamp(600px, calc(100dvh - 160px), 1120px);
   gap: 16px;
 }
 .staff-case-main-column,
@@ -3287,6 +3313,29 @@ footer .logo {
   flex-direction: column;
   gap: 15px;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(114, 223, 207, 0.22) transparent;
+}
+.staff-case-main-column::-webkit-scrollbar,
+.staff-review-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.staff-case-main-column::-webkit-scrollbar-track,
+.staff-review-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.staff-case-main-column::-webkit-scrollbar-thumb,
+.staff-review-sidebar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(114, 223, 207, 0.2);
+}
+.staff-case-main-column:hover::-webkit-scrollbar-thumb,
+.staff-review-sidebar:hover::-webkit-scrollbar-thumb {
+  background: rgba(114, 223, 207, 0.48);
 }
 .staff-review-panel {
   padding: 19px;
@@ -3510,6 +3559,28 @@ footer .logo {
 .staff-review-form h2 {
   margin-bottom: 4px;
 }
+.staff-review-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 2px 0 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(114, 223, 207, 0.3);
+  border-radius: 7px;
+  color: #baf4e8;
+  background: rgba(28, 127, 112, 0.17);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.staff-review-feedback svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.staff-review-feedback-error {
+  border-color: rgba(255, 151, 111, 0.4);
+  color: #ffd0b4;
+  background: rgba(111, 53, 30, 0.22);
+}
 .staff-request-toggle {
   display: flex;
   align-items: flex-start;
@@ -3695,6 +3766,13 @@ footer .logo {
   }
   .staff-case-detail-grid {
     grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .staff-case-main-column,
+  .staff-review-sidebar {
+    min-height: auto;
+    overflow: visible;
+    padding-right: 0;
   }
   .staff-review-sidebar {
     position: static;

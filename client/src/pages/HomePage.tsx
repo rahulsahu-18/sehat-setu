@@ -26,6 +26,7 @@ import {
   localeLabels,
   locales,
   setLocale,
+  translate,
   type Locale,
 } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
@@ -72,8 +73,8 @@ function LanguageSwitcher({
         <ChevronDown data-icon="inline-end" />
       </Button>
       {open && (
-        <div className="language-menu" role="listbox" aria-label="Language">
-          <span className="language-menu-label">Language</span>
+        <div className="language-menu" role="listbox" aria-label={translate(locale, "Language")}>
+          <span className="language-menu-label">{translate(locale, "Language")}</span>
           {locales.map((item) => (
             <button
               key={item}

@@ -10,6 +10,7 @@ import { Link, useParams } from "react-router-dom";
 import api from "@/services/api";
 import { AppHeader } from "@/components/AppHeader";
 import { FormMessage } from "@/components/AuthShell";
+import { localeTag, translate, translateStatus, useLocale } from "@/lib/i18n";
 
 type StaffCaseData = {
   case: {
@@ -99,14 +100,11 @@ const decisionActions = [
   ["CONTINUE_EVALUATION", "Continue evaluation"],
   ["SCHEDULE_FOLLOW_UP", "Schedule follow-up"],
   ["REFER_TO_DOCTOR", "Refer to doctor"],
-  ["REFER_TO_SPECIALIST", "Refer to specialist"],
   ["ESCALATE", "Escalate"],
   ["COMPLETE_CASE", "Complete case"],
 ];
 const caseStatuses = [
-  "WAITING_FOR_REVIEW",
   "WAITING_FOR_PATIENT",
-  "FINAL_REVIEW",
   "ACTIVE",
   "FOLLOW_UP",
   "REFERRED",
@@ -115,16 +113,21 @@ const caseStatuses = [
 ];
 
 function StaffCaseDetailPage() {
+  const locale = useLocale();
+  const t = (message: string) => translate(locale, message);
   const { caseId } = useParams();
   const [data, setData] = useState<StaffCaseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [reviewFeedback, setReviewFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [action, setAction] = useState("CONTINUE_EVALUATION");
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("ROUTINE");
-  const [reason, setReason] = useState("");
   const [guidance, setGuidance] = useState("");
   const [questionDraft, setQuestionDraft] = useState("");
   const [questionDrafts, setQuestionDrafts] = useState<string[]>([]);
@@ -150,7 +153,7 @@ function StaffCaseDetailPage() {
     loadCase()
       .catch((requestError: any) =>
         setError(
-          requestError.response?.data?.message || "Unable to load this case.",
+          t(requestError.response?.data?.message || "Unable to load this case."),
         ),
       )
       .finally(() => setLoading(false));
@@ -162,22 +165,35 @@ function StaffCaseDetailPage() {
     setSaving(true);
     setError("");
     setSuccess("");
+    setReviewFeedback(null);
     try {
-      await api.post(`/staff/cases/${caseId}/review`, {
+      const response = await api.post(`/staff/cases/${caseId}/review`, {
         action,
         status,
         priority,
-        reason,
         ...(guidance.trim() ? { guidance: guidance.trim() } : {}),
       });
-      setReason("");
       setGuidance("");
-      await loadCase();
-      setSuccess("Review decision saved.");
+      setReviewFeedback({
+        type: "success",
+        message: t("Review saved. Case status: {status}. Queue priority: {priority}.")
+          .replace("{status}", translateStatus(locale, response.data.data.status))
+          .replace("{priority}", translateStatus(locale, response.data.data.priority)),
+      });
+      try {
+        await loadCase();
+      } catch {
+        setReviewFeedback({
+          type: "success",
+          message: t("Review saved, but the case details could not refresh. Reload the page to see the latest status."),
+        });
+      }
     } catch (requestError: any) {
-      setError(
-        requestError.response?.data?.message || "Unable to save the review.",
-      );
+      setReviewFeedback({
+        type: "error",
+        message:
+          t(requestError.response?.data?.message || "Unable to save the review."),
+      });
     } finally {
       setSaving(false);
     }
@@ -190,10 +206,10 @@ function StaffCaseDetailPage() {
     try {
       await api.patch(`/staff/cases/${caseId}/assignment`, {});
       await loadCase();
-      setSuccess("Case claimed by you.");
+      setSuccess(t("Case claimed by you."));
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message || "Unable to claim this case.",
+        t(requestError.response?.data?.message || "Unable to claim this case."),
       );
     } finally {
       setSaving(false);
@@ -214,14 +230,11 @@ function StaffCaseDetailPage() {
       });
       await loadCase();
       setSuccess(
-        decision === "APPROVE"
-          ? "AI follow-up approved."
-          : "AI follow-up rejected.",
+        t(decision === "APPROVE" ? "AI follow-up approved." : "AI follow-up rejected."),
       );
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message ||
-          "Unable to review the question.",
+        t(requestError.response?.data?.message || "Unable to review the question."),
       );
     } finally {
       setSaving(false);
@@ -239,12 +252,14 @@ function StaffCaseDetailPage() {
       );
       await loadCase();
       setSuccess(
-        `${response.data.data.sentCount} follow-up question(s) sent to the patient.`,
+        t("{count} follow-up question(s) sent to the patient.").replace(
+          "{count}",
+          String(response.data.data.sentCount),
+        ),
       );
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message ||
-          "Unable to send follow-up questions.",
+        t(requestError.response?.data?.message || "Unable to send follow-up questions."),
       );
     } finally {
       setSaving(false);
@@ -271,12 +286,11 @@ function StaffCaseDetailPage() {
       });
       await loadCase();
       setSuccess(
-        "Staff referral handoff saved. Review it before preparing a patient slip.",
+        t("Staff referral handoff saved. Review it before preparing a patient slip."),
       );
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message ||
-          "Unable to save the referral note.",
+        t(requestError.response?.data?.message || "Unable to save the referral note."),
       );
     } finally {
       setSaving(false);
@@ -293,11 +307,10 @@ function StaffCaseDetailPage() {
         patientInstructions,
       });
       await loadCase();
-      setSuccess("Clinician-approved referral slip shared with the patient.");
+      setSuccess(t("Clinician-approved referral slip shared with the patient."));
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message ||
-          "Unable to share the patient referral slip.",
+        t(requestError.response?.data?.message || "Unable to share the patient referral slip."),
       );
     } finally {
       setSaving(false);
@@ -316,11 +329,14 @@ function StaffCaseDetailPage() {
       setQuestionDrafts([]);
       await loadCase();
       setSuccess(
-        `${response.data.data.createdCount} clinician question(s) added to the bundle.`,
+        t("{count} clinician question(s) added to the bundle.").replace(
+          "{count}",
+          String(response.data.data.createdCount),
+        ),
       );
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message || "Unable to add questions.",
+        t(requestError.response?.data?.message || "Unable to add questions."),
       );
     } finally {
       setSaving(false);
@@ -346,50 +362,49 @@ function StaffCaseDetailPage() {
       <AppHeader staff />
       <div className="staff-case-detail-inner">
         <Link className="intake-back" to="/staff/dashboard">
-          <ArrowLeft size={15} /> Back to queue
+          <ArrowLeft size={15} /> {t("Back to queue")}
         </Link>
         {loading ? (
-          <p className="staff-detail-loading">Loading case...</p>
+          <p className="staff-detail-loading">{t("Loading case...")}</p>
         ) : !data ? (
           <p className="dashboard-error" role="alert">
-            {error || "Case not found or access denied."}
+            {t(error || "Case not found or access denied.")}
           </p>
         ) : (
           <>
             <header className="staff-case-detail-header">
               <div>
                 <span className="auth-eyebrow">
-                  <span className="eyebrow-dot" /> CASE REVIEW /{" "}
+                  <span className="eyebrow-dot" /> {t("CASE REVIEW")} /{" "}
                   {data.case.caseNo}
                 </span>
                 <h1>{data.case.patientId.name}</h1>
                 <p>
                   {data.case.patientId.patientId || "Patient"} ·{" "}
-                  {data.case.intakeLanguage} intake
+                  {translateStatus(locale, data.case.intakeLanguage)} {t("patient intake")}
                 </p>
               </div>
               <div className="staff-case-state">
-                <span>{data.case.status.replaceAll("_", " ")}</span>
-                <strong>{data.case.priority} PRIORITY</strong>
+                <span>{translateStatus(locale, data.case.status)}</span>
+                <strong>{translateStatus(locale, data.case.priority)} {t("PRIORITY LABEL")}</strong>
               </div>
             </header>
 
-            <FormMessage error={error} success={success} />
+            <FormMessage error={t(error)} success={t(success)} />
 
             {flags.length > 0 && (
               <section className="staff-emergency-warning" role="alert">
                 <AlertTriangle size={19} />
                 <div>
-                  <strong>Possible emergency warning · Immediate review</strong>
+                  <strong>{t("Possible emergency warning · Immediate review")}</strong>
                   {flags.map((flag) => (
                     <p key={flag.ruleId}>
-                      {flag.reason} Mention: “{flag.reportedTerm}”.{" "}
+                      {flag.reason} {t("Mention:")} “{flag.reportedTerm}”.{" "}
                       {flag.instruction}
                     </p>
                   ))}
                   <small>
-                    Rules are educational prototype rules and require qualified
-                    clinical review before real-world use.
+                    {t("Rules are educational prototype rules and require qualified clinical review before real-world use.")}
                   </small>
                 </div>
               </section>
@@ -398,15 +413,15 @@ function StaffCaseDetailPage() {
             <div className="staff-case-detail-grid">
               <div className="staff-case-main-column">
                 <section className="staff-review-panel">
-                  <span className="section-label">AI-GENERATED BRIEF</span>
-                  <h2>Intake summary</h2>
+                  <span className="section-label">{t("AI-GENERATED BRIEF")}</span>
+                  <h2>{t("Intake summary")}</h2>
                   <p>
                     {data.summary?.summary ||
-                      "No AI summary has been saved yet."}
+                      t("No AI summary has been saved yet.")}
                   </p>
                   {!!data.summary?.missingInformation?.length && (
                     <div className="staff-missing-info">
-                      <strong>Missing information to clarify</strong>
+                      <strong>{t("Missing information to clarify")}</strong>
                       {data.summary.missingInformation.map((item) => (
                         <span key={item}>{item}</span>
                       ))}
@@ -414,7 +429,7 @@ function StaffCaseDetailPage() {
                   )}
                   {!!data.summary?.contradictions?.length && (
                     <div className="staff-missing-info">
-                      <strong>Patient-reported conflicting details</strong>
+                      <strong>{t("Patient-reported conflicting details")}</strong>
                       {data.summary.contradictions.map((item) => (
                         <span key={item}>{item}</span>
                       ))}
@@ -424,11 +439,10 @@ function StaffCaseDetailPage() {
 
                 {!!data.summary?.timeline?.length && (
                   <section className="staff-review-panel">
-                    <span className="section-label">SOURCE-BASED TIMELINE</span>
-                    <h2>Reported sequence of events</h2>
+                    <span className="section-label">{t("SOURCE-BASED TIMELINE")}</span>
+                    <h2>{t("Reported sequence of events")}</h2>
                     <p className="staff-internal-note">
-                      AI-extracted from patient text and uploaded selectable-text
-                      reports. Verify dates and events with the patient.
+                      {t("AI-extracted from patient text and uploaded selectable-text reports. Verify dates and events with the patient.")}
                     </p>
                     {data.summary.timeline.map((item, index) => (
                       <article
@@ -445,15 +459,14 @@ function StaffCaseDetailPage() {
 
                 {hasReferral && (
                   <section className="staff-review-panel staff-referral-print">
-                    <span className="section-label">REFERRAL HANDOFF</span>
-                    <h2>Referral summary · clinician review required</h2>
+                    <span className="section-label">{t("REFERRAL HANDOFF")}</span>
+                    <h2>{t("Referral summary · clinician review required")}</h2>
                     <p className="staff-internal-note">
-                      Complete the destination and clinical question, then save
-                      to create a persistent handoff snapshot for this case.
+                      {t("Complete the destination and clinical question, then save to create a persistent handoff snapshot for this case.")}
                     </p>
                     <dl>
                       <div>
-                        <dt>Patient / case</dt>
+                        <dt>{t("Patient / case")}</dt>
                         <dd>
                           {data.referralNote?.patientName ||
                             data.case.patientId.name}{" "}
@@ -463,25 +476,24 @@ function StaffCaseDetailPage() {
                         </dd>
                       </div>
                       <div>
-                        <dt>Current status / queue priority</dt>
+                        <dt>{t("Current status / queue priority")}</dt>
                         <dd>
-                          {(data.referralNote?.caseStatus || data.case.status)
-                            .replaceAll("_", " ")}{" "}
-                          · {data.referralNote?.priority || data.case.priority}
+                          {translateStatus(locale, data.referralNote?.caseStatus || data.case.status)}{" "}
+                          · {translateStatus(locale, data.referralNote?.priority || data.case.priority)}
                         </dd>
                       </div>
                       <div>
-                        <dt>Referring facility</dt>
+                        <dt>{t("Referring facility")}</dt>
                         <dd>
                           {data.referralNote
                             ? `${data.referralNote.referringFacility}${data.referralNote.referringFacilityLocation ? ` · ${data.referralNote.referringFacilityLocation}` : ""}`
                             : typeof data.case.facilityId === "object"
                               ? `${data.case.facilityId.name}${data.case.facilityId.location ? ` · ${data.case.facilityId.location}` : ""}`
-                              : "Facility name unavailable"}
+                              : t("Facility name unavailable")}
                         </dd>
                       </div>
                       <div>
-                        <dt>Receiving facility / unit</dt>
+                        <dt>{t("Receiving facility / unit")}</dt>
                         <dd className="staff-referral-screen-only">
                           <input
                             id="referralDestination"
@@ -491,16 +503,16 @@ function StaffCaseDetailPage() {
                               setReferralSaved(false);
                             }}
                             maxLength={200}
-                            placeholder="Enter destination after confirming it"
+                            placeholder={t("Enter destination after confirming it")}
                             required
                           />
                         </dd>
                         <dd className="staff-referral-print-only">
-                          {data.referralNote?.receivingFacility || "Not entered"}
+                          {data.referralNote?.receivingFacility || t("Not entered")}
                         </dd>
                       </div>
                       <div>
-                        <dt>Clinical question / reason for referral</dt>
+                        <dt>{t("Clinical question / reason for referral")}</dt>
                         <dd className="staff-referral-screen-only">
                           <textarea
                             id="referralQuestion"
@@ -510,16 +522,16 @@ function StaffCaseDetailPage() {
                               setReferralSaved(false);
                             }}
                             maxLength={1000}
-                            placeholder="Describe the specific question for the receiving clinician"
+                            placeholder={t("Describe the specific question for the receiving clinician")}
                             required
                           />
                         </dd>
                         <dd className="staff-referral-print-only">
-                          {data.referralNote?.clinicalQuestion || "Not entered"}
+                          {data.referralNote?.clinicalQuestion || t("Not entered")}
                         </dd>
                       </div>
                       <div>
-                        <dt>Patient-reported summary (AI draft)</dt>
+                        <dt>{t("Patient-reported summary (AI draft)")}</dt>
                         <dd>
                           {data.referralNote?.patientSummary ||
                             "No summary recorded."}
@@ -527,7 +539,7 @@ function StaffCaseDetailPage() {
                       </div>
                       {!!data.referralNote?.timeline.length && (
                         <div>
-                          <dt>Reported timeline (verify)</dt>
+                          <dt>{t("Reported timeline (verify)")}</dt>
                           <dd>
                             {data.referralNote.timeline
                               .map(
@@ -540,19 +552,19 @@ function StaffCaseDetailPage() {
                       )}
                       {!!data.referralNote?.reportSources.length && (
                         <div>
-                          <dt>Uploaded report files (verify originals)</dt>
+                          <dt>{t("Uploaded report files (verify originals)")}</dt>
                           <dd>{data.referralNote.reportSources.join("\n")}</dd>
                         </div>
                       )}
                       {!!data.referralNote?.warningFlags.length && (
                         <div>
-                          <dt>Prototype warning flags · verify immediately</dt>
+                          <dt>{t("Prototype warning flags · verify immediately")}</dt>
                           <dd>{data.referralNote.warningFlags.join("\n")}</dd>
                         </div>
                       )}
                       {!!data.referralNote?.missingInformation.length && (
                         <div>
-                          <dt>Information still to clarify</dt>
+                          <dt>{t("Information still to clarify")}</dt>
                           <dd>
                             {data.referralNote.missingInformation.join("\n")}
                           </dd>
@@ -560,25 +572,23 @@ function StaffCaseDetailPage() {
                       )}
                       {!!data.referralNote?.contradictions.length && (
                         <div>
-                          <dt>Reported contradictions</dt>
+                          <dt>{t("Reported contradictions")}</dt>
                           <dd>{data.referralNote.contradictions.join("\n")}</dd>
                         </div>
                       )}
                       {data.referralNote && (
                         <div>
-                          <dt>Last saved</dt>
+                          <dt>{t("Last saved")}</dt>
                           <dd>
-                            {new Date(data.referralNote.updatedAt).toLocaleString()}
+                            {new Date(data.referralNote.updatedAt).toLocaleString(
+                              localeTag(locale),
+                            )}
                           </dd>
                         </div>
                       )}
                     </dl>
                     <p>
-                      Non-diagnostic information handoff prepared from
-                      patient-provided content. Confirm source documents,
-                      values, units, identity, and destination before referral.
-                      Do not use this draft as a substitute for clinical
-                      assessment.
+                      {t("Non-diagnostic information handoff prepared from patient-provided content. Confirm source documents, values, units, identity, and destination before referral. Do not use this draft as a substitute for clinical assessment.")}
                     </p>
                     <button
                       className="button button-primary staff-referral-save"
@@ -586,7 +596,7 @@ function StaffCaseDetailPage() {
                       onClick={saveReferralNote}
                       disabled={saving}
                     >
-                      {saving ? "Saving referral note..." : "Save referral note"}
+                      {saving ? t("Saving referral note...") : t("Save referral note")}
                     </button>
                     <button
                       className="button button-secondary"
@@ -594,30 +604,30 @@ function StaffCaseDetailPage() {
                       onClick={() => window.print()}
                       disabled={!referralSaved || saving}
                     >
-                      Print saved referral handoff
+                      {t("Print saved referral handoff")}
                     </button>
                     {data.referralNote && (
                       <div className="staff-referral-patient-share">
                         <span className="section-label">
-                          PATIENT-FACING REFERRAL SLIP
+                          {t("PATIENT-FACING REFERRAL SLIP")}
                         </span>
                         <h3>
                           {data.referralNote.patientSharedAt
-                            ? "A slip has been shared with the patient"
-                            : "Review and share patient next steps"}
+                            ? t("A slip has been shared with the patient")
+                            : t("Review and share patient next steps")}
                         </h3>
                         {data.referralNote.patientSharedAt && (
                           <p className="staff-internal-note">
                             Shared{" "}
                             {new Date(
                               data.referralNote.patientSharedAt,
-                            ).toLocaleString()}
+                            ).toLocaleString(localeTag(locale))}
                             . Saving changes to the staff handoff withdraws the
                             current patient slip until it is shared again.
                           </p>
                         )}
                         <label htmlFor="patientReferralInstructions">
-                          Clinician-approved instructions for the patient
+                          {t("Clinician-approved instructions for the patient")}
                         </label>
                         <textarea
                           id="patientReferralInstructions"
@@ -650,8 +660,8 @@ function StaffCaseDetailPage() {
                           {saving
                             ? "Sharing referral slip..."
                             : data.referralNote.patientSharedAt
-                              ? "Update and share patient slip"
-                              : "Approve and share patient slip"}
+                              ? t("Update and share patient slip")
+                              : t("Approve and share patient slip")}
                         </button>
                       </div>
                     )}
@@ -660,42 +670,43 @@ function StaffCaseDetailPage() {
 
                 <details className="staff-case-history">
                   <summary>
-                    View conversation and timeline ({data.inputs.length} patient
-                    messages)
+                    {t("View conversation and timeline")} ({data.inputs.length} {t("patient messages")})
                   </summary>
                   <section className="staff-review-panel">
                     <span className="section-label">
-                      PATIENT-REPORTED INTAKE
+                      {t("PATIENT-REPORTED INTAKE")}
                     </span>
-                    <h2>Conversation and timeline</h2>
+                    <h2>{t("Conversation and timeline")}</h2>
                     <div className="staff-transcript">
                       {transcript.length ? (
                         transcript.map((message, index) => (
                           <article key={`${index}-${message.role}`}>
                             <span>
                               {message.role === "assistant"
-                                ? "AI INTAKE ASSISTANT"
-                                : "PATIENT"}
+                                ? t("AI INTAKE ASSISTANT")
+                                : t("PATIENT")}
                             </span>
                             <p>{message.content}</p>
                           </article>
                         ))
                       ) : (
-                        <p>No intake messages have been submitted.</p>
+                        <p>{t("No intake messages have been submitted.")}</p>
                       )}
                     </div>
                     <details className="staff-input-timeline">
                       <summary>
-                        Saved patient text inputs ({data.inputs.length})
+                        {t("Saved patient text inputs")} ({data.inputs.length})
                       </summary>
                       {data.inputs.map((input, index) => (
                         <p key={`${input.createdAt}-${index}`}>
                           <time>
-                            {new Date(input.createdAt).toLocaleString()}
+                            {new Date(input.createdAt).toLocaleString(
+                              localeTag(locale),
+                            )}
                           </time>
                           {input.mode === "DOCUMENT" && (
                             <strong>
-                              Report: {input.sourceName || "Uploaded document"}
+                              {t("Report")}: {input.sourceName || t("Uploaded document")}
                               {"\n"}
                             </strong>
                           )}
@@ -707,8 +718,8 @@ function StaffCaseDetailPage() {
                 </details>
 
                 <section className="staff-review-panel">
-                  <span className="section-label">REVIEW HISTORY</span>
-                  <h2>Recorded decisions</h2>
+                  <span className="section-label">{t("REVIEW HISTORY")}</span>
+                  <h2>{t("Recorded decisions")}</h2>
                   {data.decisions.length ? (
                     data.decisions.map((decision) => (
                       <article
@@ -716,13 +727,13 @@ function StaffCaseDetailPage() {
                         key={decision._id}
                       >
                         <span>
-                          {decision.action.replaceAll("_", " ")} ·{" "}
-                          {decision.priority}
+                          {t(decision.action)} ·{" "}
+                                {translateStatus(locale, decision.priority)}
                         </span>
                         <strong>
                           {typeof decision.staffId === "object"
                             ? decision.staffId.name
-                            : "Care-team staff"}
+                            : t("Care-team staff")}
                         </strong>
                         {decision.reason && <p>{decision.reason}</p>}
                         {decision.guidance && (
@@ -733,23 +744,28 @@ function StaffCaseDetailPage() {
                             Assigned to:{" "}
                             {typeof decision.assignedToId === "object"
                               ? decision.assignedToId.name
-                              : "Care-team staff"}
+                              : t("Care-team staff")}
                           </small>
                         )}
                         <time>
-                          {new Date(decision.createdAt).toLocaleString()}
+                          {new Date(decision.createdAt).toLocaleString(
+                            localeTag(locale),
+                          )}
                         </time>
                       </article>
                     ))
                   ) : (
-                    <p>No staff decisions have been recorded.</p>
+                    <p>{t("No staff decisions have been recorded.")}</p>
                   )}
                   {!!data.auditTrail.length && (
                     <details className="staff-input-timeline">
-                      <summary>Audit events ({data.auditTrail.length})</summary>
+                      <summary>{t("Audit events")} ({data.auditTrail.length})</summary>
                       {data.auditTrail.map((event, index) => (
                         <p key={`${event.timestamp}-${index}`}>
-                          {new Date(event.timestamp).toLocaleString()} ·{" "}
+                          {new Date(event.timestamp).toLocaleString(
+                            localeTag(locale),
+                          )}{" "}
+                          ·{" "}
                           {event.action.replaceAll("_", " ")}
                           {event.actorId &&
                             ` · by ${typeof event.actorId === "object" ? event.actorId.name : "care-team staff"}`}
@@ -765,21 +781,19 @@ function StaffCaseDetailPage() {
                 </section>
 
                 <section className="staff-review-panel staff-question-panel">
-                  <span className="section-label">FOLLOW-UP QUESTIONS</span>
-                  <h2>Questions for the patient</h2>
+                  <span className="section-label">{t("FOLLOW-UP QUESTIONS")}</span>
+                  <h2>{t("Questions for the patient")}</h2>
                   <p className="staff-question-guidance">
-                    AI suggestions need your approval. Questions you write are
-                    already approved, but neither type reaches the patient
-                    until you send the bundle.
+                    {t("AI suggestions need your approval. Questions you write are already approved, but neither type reaches the patient until you send the bundle.")}
                   </p>
-                  <label htmlFor="questionDraft">Create a question</label>
+                  <label htmlFor="questionDraft">{t("Create a question")}</label>
                   <textarea
                     id="questionDraft"
                     value={questionDraft}
                     onChange={(event) => setQuestionDraft(event.target.value)}
                     minLength={5}
                     maxLength={1000}
-                    placeholder="Write a clear, focused question..."
+                    placeholder={t("Write a clear, focused question...")}
                   />
                   <button
                     className="button button-secondary"
@@ -790,7 +804,7 @@ function StaffCaseDetailPage() {
                       questionDrafts.length >= 10
                     }
                   >
-                    Add question
+                    {t("Add question")}
                   </button>
                   {!!questionDrafts.length && (
                     <>
@@ -808,9 +822,9 @@ function StaffCaseDetailPage() {
                                   ),
                                 )
                               }
-                              aria-label={`Remove question ${index + 1}`}
+                              aria-label={`${t("Remove question")} ${index + 1}`}
                             >
-                              Remove
+                              {t("Remove")}
                             </button>
                           </li>
                         ))}
@@ -822,8 +836,8 @@ function StaffCaseDetailPage() {
                         disabled={saving}
                       >
                         {saving
-                          ? "Saving questions..."
-                          : `Save ${questionDrafts.length} question${questionDrafts.length === 1 ? "" : "s"} for review`}
+                          ? t("Saving questions...")
+                          : t("Save {count} questions for review").replace("{count}", String(questionDrafts.length))}
                       </button>
                     </>
                   )}
@@ -838,19 +852,18 @@ function StaffCaseDetailPage() {
                       }
                     >
                       {saving
-                        ? "Sending to patient..."
-                        : `Send ${data.questions.filter((item) => item.status === "APPROVED").length} approved question${data.questions.filter((item) => item.status === "APPROVED").length === 1 ? "" : "s"} to patient`}
+                        ? t("Sending to patient...")
+                        : t("Send {count} approved questions to patient").replace("{count}", String(data.questions.filter((item) => item.status === "APPROVED").length))}
                     </button>
                   )}
                   {data.questions.some((item) => item.status === "SENT") && (
                     <p className="staff-question-delivery-note" role="status">
-                      Follow-up sent. The patient can read and answer it in
-                      their case intake.
+                      {t("Follow-up sent. The patient can read and answer it in their case intake.")}
                     </p>
                   )}
                   {!!data.questions.length && (
                     <div className="staff-question-history">
-                      <strong>Question and delivery history</strong>
+                      <strong>{t("Question and delivery history")}</strong>
                       {data.questions.map((item) => {
                         const answer = data.answers.find(
                           (entry) => entry.questionId === item._id,
@@ -861,7 +874,7 @@ function StaffCaseDetailPage() {
                             key={item._id}
                           >
                             <span>
-                              {item.source} · {item.status.replaceAll("_", " ")}
+                              {t(item.source)} · {translateStatus(locale, item.status)}
                             </span>
                             <p>{item.question}</p>
                             {item.source === "AI" &&
@@ -875,7 +888,7 @@ function StaffCaseDetailPage() {
                                     }
                                     disabled={saving}
                                   >
-                                    Approve
+                                    {t("Approve")}
                                   </button>
                                   <button
                                     className="button button-secondary"
@@ -885,15 +898,17 @@ function StaffCaseDetailPage() {
                                     }
                                     disabled={saving}
                                   >
-                                    Reject
+                                    {t("Reject")}
                                   </button>
                                 </div>
                               )}
                             {answer && (
-                              <small>Patient response: {answer.answer}</small>
+                              <small>{t("Patient response:")} {answer.answer}</small>
                             )}
                             <time>
-                              {new Date(item.createdAt).toLocaleString()}
+                              {new Date(item.createdAt).toLocaleString(
+                                localeTag(locale),
+                              )}
                             </time>
                           </article>
                         );
@@ -905,16 +920,16 @@ function StaffCaseDetailPage() {
 
               <aside className="staff-review-sidebar">
                 <section className="staff-review-panel">
-                  <span className="section-label">CASE OWNER</span>
+                  <span className="section-label">{t("CASE OWNER")}</span>
                   <h2>
-                    <UserRound size={17} /> Assignment
+                    <UserRound size={17} /> {t("Assignment")}
                   </h2>
                   <p>
                     {typeof data.case.assignedStaffId === "object"
                       ? data.case.assignedStaffId.name
                       : data.case.assignedStaffId
-                        ? "Assigned clinician"
-                        : "Unassigned"}
+                        ? t("Assigned clinician")
+                        : t("Unassigned")}
                   </p>
                   {!data.case.assignedStaffId && (
                     <button
@@ -923,11 +938,11 @@ function StaffCaseDetailPage() {
                       onClick={claimCase}
                       disabled={saving}
                     >
-                      Claim case for me
+                      {t("Claim case for me")}
                     </button>
                   )}
                   <small className="staff-internal-note">
-                    Case allocation is managed by your facility administrator.
+                    {t("Case allocation is managed by your facility administrator.")}
                   </small>
                 </section>
 
@@ -935,20 +950,11 @@ function StaffCaseDetailPage() {
                   className="staff-review-panel staff-review-form"
                   onSubmit={submitReview}
                 >
-                  <span className="section-label">CLINICIAN REVIEW</span>
+                  <span className="section-label">{t("CLINICIAN REVIEW")}</span>
                   <h2>
-                    <ClipboardCheck size={17} /> Record assessment
+                    <ClipboardCheck size={17} /> {t("Record review")}
                   </h2>
-                  <label htmlFor="reviewReason">Assessment / reason</label>
-                  <textarea
-                    id="reviewReason"
-                    value={reason}
-                    onChange={(event) => setReason(event.target.value)}
-                    required
-                    minLength={3}
-                    maxLength={2000}
-                  />
-                  <label htmlFor="reviewAction">Decision action</label>
+                  <label htmlFor="reviewAction">{t("Decision action")}</label>
                   <select
                     id="reviewAction"
                     value={action}
@@ -961,11 +967,11 @@ function StaffCaseDetailPage() {
                   >
                     {decisionActions.map(([value, label]) => (
                       <option value={value} key={value}>
-                        {label}
+                        {t(label)}
                       </option>
                     ))}
                   </select>
-                  <label htmlFor="reviewStatus">Case status</label>
+                  <label htmlFor="reviewStatus">{t("Case status")}</label>
                   <select
                     id="reviewStatus"
                     value={status}
@@ -973,28 +979,28 @@ function StaffCaseDetailPage() {
                   >
                     {!caseStatuses.includes(data.case.status) && (
                       <option value={data.case.status}>
-                        {data.case.status.replaceAll("_", " ")}
+                        {translateStatus(locale, data.case.status)}
                       </option>
                     )}
                     {caseStatuses.map((value) => (
                       <option value={value} key={value}>
-                        {value.replaceAll("_", " ")}
+                        {translateStatus(locale, value)}
                       </option>
                     ))}
                   </select>
-                  <label htmlFor="reviewPriority">Queue priority</label>
+                  <label htmlFor="reviewPriority">{t("Queue priority")}</label>
                   <select
                     id="reviewPriority"
                     value={priority}
                     onChange={(event) => setPriority(event.target.value)}
                   >
-                    <option value="ROUTINE">Routine</option>
-                    <option value="PRIORITY">Priority</option>
-                    <option value="URGENT">Urgent</option>
+                    <option value="ROUTINE">{translateStatus(locale, "ROUTINE")}</option>
+                    <option value="PRIORITY">{translateStatus(locale, "PRIORITY")}</option>
+                    <option value="URGENT">{translateStatus(locale, "URGENT")}</option>
                   </select>
                   <label htmlFor="reviewGuidance">
-                    Patient-visible care-team guidance / next steps
-                    {status === "COMPLETED" && " (required)"}
+                    {t("Patient-visible care-team guidance / next steps")}
+                    {status === "COMPLETED" && ` (${t("required")})`}
                   </label>
                   <textarea
                     id="reviewGuidance"
@@ -1005,18 +1011,30 @@ function StaffCaseDetailPage() {
                     maxLength={2000}
                   />
                   <p className="staff-internal-note">
-                    This guidance is shown to the patient in their case view.
-                    Keep internal assessment notes in the assessment field.
+                    {t("This guidance is shown to the patient in their case view.")}
                     {status === "COMPLETED" &&
-                      " Add clear next steps before completing this case."}
+                      ` ${t("Add clear next steps before completing this case.")}`}
                   </p>
                   <button
                     className="button button-primary"
                     type="submit"
                     disabled={saving}
                   >
-                    {saving ? "Saving review..." : "Save review"}
+                    {saving ? t("Saving review...") : t("Save review")}
                   </button>
+                  {reviewFeedback && (
+                    <p
+                      className={`staff-review-feedback staff-review-feedback-${reviewFeedback.type}`}
+                      role={reviewFeedback.type === "error" ? "alert" : "status"}
+                    >
+                      {reviewFeedback.type === "success" ? (
+                        <CheckCircle2 size={16} aria-hidden="true" />
+                      ) : (
+                        <AlertTriangle size={16} aria-hidden="true" />
+                      )}
+                      <span>{reviewFeedback.message}</span>
+                    </p>
+                  )}
                 </form>
               </aside>
             </div>

@@ -3,7 +3,8 @@ import { AlertTriangle, ArrowRight, FileText } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { AppHeader } from "@/components/AppHeader";
-import { detectLocale, getPatientCopy } from "@/lib/i18n";
+import { getPatientCopy,
+localeTag, translate, translateStatus, useLocale } from "@/lib/i18n";
 
 type PatientCase = {
   _id: string;
@@ -23,7 +24,9 @@ function PatientCasesPage() {
   const [deletingCaseId, setDeletingCaseId] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [error, setError] = useState("");
-  const copy = getPatientCopy(detectLocale());
+  const locale = useLocale();
+  const t = (message: string) => translate(locale, message);
+  const copy = getPatientCopy(locale);
 
   useEffect(() => {
     api
@@ -31,7 +34,7 @@ function PatientCasesPage() {
       .then((response) => setCases(response.data.data))
       .catch((requestError) =>
         setError(
-          requestError.response?.data?.message || "Unable to load your cases.",
+          t(requestError.response?.data?.message || "Unable to load your cases."),
         ),
       )
       .finally(() => setLoading(false));
@@ -50,7 +53,7 @@ function PatientCasesPage() {
       setCases((current) => current.filter((item) => item._id !== caseId));
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message || "Unable to delete this case.",
+        t(requestError.response?.data?.message || "Unable to delete this case."),
       );
     } finally {
       setDeletingCaseId("");
@@ -70,7 +73,7 @@ function PatientCasesPage() {
     } catch (requestError: any) {
       setError(
         requestError.response?.data?.message ||
-          "Unable to delete your account data.",
+          t("Unable to delete your account data."),
       );
     } finally {
       setDeletingAccount(false);
@@ -84,7 +87,7 @@ function PatientCasesPage() {
         <header className="patient-cases-heading">
           <div>
             <span className="auth-eyebrow">
-              <span className="eyebrow-dot" /> PATIENT WORKSPACE
+              <span className="eyebrow-dot" /> {t("PATIENT WORKSPACE")}
             </span>
             <h1>{copy.casesTitle}</h1>
             <p>{copy.casesBody}</p>
@@ -100,30 +103,24 @@ function PatientCasesPage() {
           </p>
         )}
         {loading ? (
-          <p className="patient-cases-loading">Loading your cases...</p>
+          <p className="patient-cases-loading">{t("Loading your cases...")}</p>
         ) : cases.length ? (
           <div className="patient-case-list">
             {cases.map((item) => {
-              const caseCopy = getPatientCopy(
-                item.intakeLanguage === "hindi"
-                  ? "hi"
-                  : item.intakeLanguage === "odia"
-                    ? "or"
-                    : "en",
-              );
+              const caseCopy = copy;
               return (
               <article className="patient-case-card" key={item._id}>
                 <div className="patient-case-card-heading">
                   <div>
                     <span className="section-label">{item.caseNo}</span>
-                    <h2>{item.facilityId?.name || "Care facility"}</h2>
-                    <p>{item.facilityId?.location || "Location unavailable"}</p>
+                    <h2>{item.facilityId?.name || t("Care facility")}</h2>
+                    <p>{item.facilityId?.location || t("Location unavailable")}</p>
                   </div>
                   <div className="patient-case-status">
                     <span
                       className={`status-badge status-${item.status.toLowerCase()}`}
                     >
-                      {item.status.replaceAll("_", " ")}
+                      {translateStatus(locale, item.status)}
                     </span>
                     {item.hasUpdates && (
                       <span
@@ -136,7 +133,7 @@ function PatientCasesPage() {
                 </div>
                 {item.hasUpdates && (
                   <p className="patient-case-update" role="status">
-                    New update from your care team
+                    {t("New update from your care team")}
                   </p>
                 )}
                 {item.priority === "URGENT" && (
@@ -175,17 +172,19 @@ function PatientCasesPage() {
                 )}
                 <div className="patient-case-meta">
                   <span>
-                    Priority<strong>{item.priority}</strong>
+                    {t("Priority")}<strong>{translateStatus(locale, item.priority)}</strong>
                   </span>
                   <span>
-                    Intake language<strong>{item.intakeLanguage}</strong>
+                    {t("Intake language")}<strong>{translateStatus(locale, item.intakeLanguage)}</strong>
                   </span>
                 </div>
                 {item.retentionExpiresAt && (
                   <p className="patient-case-retention">
                     {caseCopy.retention.replace(
                       "{date}",
-                      new Date(item.retentionExpiresAt).toLocaleDateString(),
+                      new Date(item.retentionExpiresAt).toLocaleDateString(
+                        localeTag(locale),
+                      ),
                     )}
                   </p>
                 )}
@@ -202,7 +201,7 @@ function PatientCasesPage() {
                   disabled={deletingCaseId === item._id}
                 >
                   {deletingCaseId === item._id
-                    ? "Deleting case data..."
+                    ? t("Deleting case data...")
                     : caseCopy.deleteCase}
                 </button>
               </article>
@@ -226,7 +225,7 @@ function PatientCasesPage() {
           onClick={() => void deleteAccount()}
           disabled={deletingAccount}
         >
-          {deletingAccount ? "Deleting account data..." : copy.deleteAccount}
+          {deletingAccount ? t("Deleting account data...") : copy.deleteAccount}
         </button>
       </div>
     </main>

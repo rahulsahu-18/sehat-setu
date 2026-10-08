@@ -72,6 +72,7 @@ test("transcribes an owned consented case in its selected language", async () =>
   });
   global.fetch = async (_url, options) => {
     assert.equal(options.body.get("language"), "or");
+    assert.match(options.body.get("prompt"), /Odia.*Odia script/);
     return new Response(JSON.stringify({ text: "Synthetic Odia transcript" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -86,4 +87,33 @@ test("transcribes an owned consented case in its selected language", async () =>
     success: true,
     data: { transcript: "Synthetic Odia transcript" },
   });
+});
+
+test("explains when the transcription service rejects the selected language", async () => {
+  process.env.OPENAI_API_KEY = "synthetic-test-key";
+  Case.findOne = async () => ({
+    consent: { version: "intake-ai-v1", acceptedAt: new Date() },
+    intakeLanguage: "odia",
+    status: "NEW",
+  });
+  global.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        error: {
+          message: "Unsupported language",
+          code: "unsupported_value",
+        },
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+
+  const res = responseRecorder();
+  await transcribePatientIntakeVoice(voiceRequest(), res);
+
+  assert.equal(res.statusCode, 502);
+  assert.match(res.body.message, /does not support odia/i);
+  assert.match(res.body.message, /whisper-1/i);
 });

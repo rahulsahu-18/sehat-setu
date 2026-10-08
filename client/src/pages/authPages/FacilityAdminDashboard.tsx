@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { AppHeader } from "@/components/AppHeader";
+import { translate, translateStatus, useLocale } from "@/lib/i18n";
 
 type Application = {
   _id: string;
@@ -35,6 +36,8 @@ type AssignmentCase = {
 type AssignableStaff = { id: string; name: string; role: string };
 
 function FacilityAdminDashboard() {
+  const locale = useLocale();
+  const t = (message: string) => translate(locale, message);
   const [applications, setApplications] = useState<Application[]>([]);
   const [assignmentCases, setAssignmentCases] = useState<AssignmentCase[]>([]);
   const [team, setTeam] = useState<AssignableStaff[]>([]);
@@ -57,7 +60,7 @@ function FacilityAdminDashboard() {
 
       setApplications(response.data.data);
     } catch (error: any) {
-      setError(error.response?.data?.message || "Failed to load applications");
+      setError(t(error.response?.data?.message || "Failed to load applications"));
     } finally {
       setLoading(false);
     }
@@ -82,8 +85,7 @@ function FacilityAdminDashboard() {
       );
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message ||
-          "Failed to load case assignments",
+        t(requestError.response?.data?.message || "Failed to load case assignments"),
       );
     } finally {
       setAssignmentLoading(false);
@@ -107,7 +109,7 @@ function FacilityAdminDashboard() {
       await fetchAssignmentQueue();
     } catch (requestError: any) {
       setError(
-        requestError.response?.data?.message || "Failed to assign this case",
+        t(requestError.response?.data?.message || "Failed to assign this case"),
       );
     } finally {
       setActionId("");
@@ -121,7 +123,7 @@ function FacilityAdminDashboard() {
 
       await fetchApplications();
     } catch (error: any) {
-      setError(error.response?.data?.message || "Failed to accept application");
+      setError(t(error.response?.data?.message || "Failed to accept application"));
     } finally {
       setActionId("");
     }
@@ -134,7 +136,7 @@ function FacilityAdminDashboard() {
 
       await fetchApplications();
     } catch (error: any) {
-      setError(error.response?.data?.message || "Failed to reject application");
+      setError(t(error.response?.data?.message || "Failed to reject application"));
     } finally {
       setActionId("");
     }
@@ -172,23 +174,23 @@ function FacilityAdminDashboard() {
       <div className="dashboard-inner">
         <header className="dashboard-header">
           <div>
-            <span className="section-label">FACILITY WORKSPACE / ADMIN</span>
-            <h1>Staff applications</h1>
+            <span className="section-label">{t("FACILITY WORKSPACE / ADMIN")}</span>
+            <h1>{t("Staff applications")}</h1>
             <p>
-              Review and approve the people joining your connected care team.
+              {t("Review and approve the people joining your connected care team.")}
             </p>
           </div>
           <div className="dashboard-header-actions">
             <button
               className="dashboard-icon-button"
               onClick={fetchApplications}
-              title="Refresh applications"
-              aria-label="Refresh applications"
+              title={t("Refresh applications")}
+              aria-label={t("Refresh applications")}
             >
               <RefreshCw size={16} />
             </button>
             <button className="dashboard-signout" onClick={signOut}>
-              <LogOut size={15} /> Sign out
+              <LogOut size={15} /> {t("Sign out")}
             </button>
           </div>
         </header>
@@ -199,22 +201,22 @@ function FacilityAdminDashboard() {
           </p>
         )}
 
-        <div className="dashboard-metrics" aria-label="Application summary">
+        <div className="dashboard-metrics" aria-label={t("Application summary")}>
           <div>
             <span>
-              <Clock3 size={15} /> NEEDS REVIEW
+              <Clock3 size={15} /> {t("NEEDS REVIEW")}
             </span>
             <strong>{pendingCount}</strong>
           </div>
           <div>
             <span>
-              <Check size={15} /> APPROVED
+              <Check size={15} /> {t("APPROVED")}
             </span>
             <strong>{acceptedCount}</strong>
           </div>
           <div>
             <span>
-              <Users size={15} /> TOTAL APPLICATIONS
+              <Users size={15} /> {t("TOTAL APPLICATIONS")}
             </span>
             <strong>{applications.length}</strong>
           </div>
@@ -223,15 +225,15 @@ function FacilityAdminDashboard() {
         <section className="facility-assignment-section">
           <div className="dashboard-section-heading">
             <div>
-              <span className="section-label">CASE ALLOCATION</span>
-              <h2>Assign cases to care staff</h2>
+              <span className="section-label">{t("CASE ALLOCATION")}</span>
+              <h2>{t("Assign cases to care staff")}</h2>
             </div>
             <span className="dashboard-secure">
-              Facility administrator only
+              {t("Facility administrator only")}
             </span>
           </div>
           {assignmentLoading ? (
-            <p>Loading facility cases...</p>
+            <p>{t("Loading facility cases...")}</p>
           ) : assignmentCases.length ? (
             <div className="facility-assignment-list">
               {assignmentCases.map((item) => (
@@ -239,10 +241,10 @@ function FacilityAdminDashboard() {
                   <div>
                     <span className="application-role">{item.caseNo}</span>
                     <strong>{item.patientId.name}</strong>
-                    <small>{item.status.replaceAll("_", " ")}</small>
+                    <small>{translateStatus(locale, item.status)}</small>
                   </div>
                   <select
-                    aria-label={`Assign ${item.caseNo} to staff`}
+                    aria-label={t(`Assign ${item.caseNo} to staff`)}
                     value={selectedAssignees[item._id] || ""}
                     onChange={(event) =>
                       setSelectedAssignees((current) => ({
@@ -251,10 +253,10 @@ function FacilityAdminDashboard() {
                       }))
                     }
                   >
-                    <option value="">Choose doctor or nurse</option>
+                    <option value="">{t("Choose doctor or nurse")}</option>
                     {team.map((member) => (
                       <option value={member.id} key={member.id}>
-                        {member.name} · {member.role}
+                        {member.name} · {t(member.role)}
                       </option>
                     ))}
                   </select>
@@ -266,45 +268,45 @@ function FacilityAdminDashboard() {
                       actionId === item._id || !selectedAssignees[item._id]
                     }
                   >
-                    {actionId === item._id ? "Saving..." : "Assign case"}
+                    {actionId === item._id ? t("Saving...") : t("Assign case")}
                   </button>
                 </article>
               ))}
             </div>
           ) : (
-            <p>No open cases need allocation.</p>
+            <p>{t("No open cases need allocation.")}</p>
           )}
         </section>
 
         <div className="dashboard-section-heading">
           <div>
-            <span className="section-label">APPLICATION QUEUE</span>
-            <h2>Pending and recent applications</h2>
+            <span className="section-label">{t("APPLICATION QUEUE")}</span>
+            <h2>{t("Pending and recent applications")}</h2>
           </div>
           <span className="dashboard-secure">
-            <ShieldCheck size={15} /> Admin protected
+            <ShieldCheck size={15} /> {t("Admin protected")}
           </span>
         </div>
 
         {applications.length === 0 ? (
-          <p>No applications found.</p>
+          <p>{t("No applications found.")}</p>
         ) : (
           <div className="application-list">
             {applications.map((application) => (
               <div className="application-card" key={application._id}>
                 <div className="application-card-top">
                   <div>
-                    <span className="application-role">{application.role}</span>
+                    <span className="application-role">{t(application.role)}</span>
                     <h3>{application.name}</h3>
                   </div>
                   <span
                     className={`status-badge status-${application.status.toLowerCase()}`}
                   >
-                    {application.status}
+                    {translateStatus(locale, application.status)}
                   </span>
                 </div>
                 <div className="application-details">
-                  <span>{application.email || "No email provided"}</span>
+                  <span>{application.email || t("No email provided")}</span>
                   <span>{application.phoneNo}</span>
                 </div>
                 {application.status === "PENDING" && (
@@ -315,14 +317,14 @@ function FacilityAdminDashboard() {
                     >
                       <Check size={14} />{" "}
                       {actionId === application._id
-                        ? "Updating..."
-                        : "Accept application"}
+                        ? t("Updating...")
+                        : t("Accept application")}
                     </button>
                     <button
                       disabled={actionId === application._id}
                       onClick={() => rejectApplication(application._id)}
                     >
-                      <X size={14} /> Reject
+                      <X size={14} /> {t("Reject")}
                     </button>
                   </div>
                 )}

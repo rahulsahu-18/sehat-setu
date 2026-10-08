@@ -2,6 +2,8 @@ import { HeartPulse, LogOut, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "@/services/api";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { translate, useLocale } from "@/lib/i18n";
 
 type AuthUser = {
   name?: string;
@@ -21,6 +23,7 @@ function getUser(): AuthUser {
 
 export function ProfileMenu() {
   const navigate = useNavigate();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [hasPatientUpdates, setHasPatientUpdates] = useState(false);
   const user = getUser();
@@ -31,7 +34,7 @@ export function ProfileMenu() {
         ? "PATIENT"
         : "FACILITY ADMIN";
   const identifier =
-    user.patientId || user.email || user.phoneNo || "Authenticated user";
+    user.patientId || user.email || user.phoneNo || translate(locale, "Authenticated user");
   const dashboardPath =
     user.role === "PATIENT"
       ? "/patient/cases"
@@ -66,17 +69,17 @@ export function ProfileMenu() {
         className="profile-trigger"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        aria-label="Open profile menu"
+        aria-label={translate(locale, "Open profile menu")}
       >
         <span className="profile-avatar">
           <UserRound size={16} />
           {hasPatientUpdates && (
-            <i className="profile-update-dot" aria-label="New case update" />
+            <i className="profile-update-dot" aria-label={translate(locale, "New case update")} />
           )}
         </span>
         <span className="profile-trigger-copy">
-          <strong>{user.name || role.toLowerCase()}</strong>
-          <small>{role}</small>
+          <strong>{user.name || translate(locale, role.toLowerCase())}</strong>
+          <small>{translate(locale, role.toLowerCase())}</small>
         </span>
       </button>
       {open && (
@@ -86,12 +89,12 @@ export function ProfileMenu() {
               <UserRound size={16} />
             </span>
             <div>
-              <strong>{user.name || "Account"}</strong>
-              <small>{role}</small>
+              <strong>{user.name || translate(locale, "Account")}</strong>
+              <small>{translate(locale, role.toLowerCase())}</small>
             </div>
           </div>
           <div className="profile-detail">
-            <span>{user.patientId ? "Patient ID" : "Account"}</span>
+            <span>{user.patientId ? translate(locale, "Patient ID") : translate(locale, "Account")}</span>
             <strong>{identifier}</strong>
           </div>
           <Link
@@ -99,10 +102,10 @@ export function ProfileMenu() {
             to={dashboardPath}
             onClick={() => setOpen(false)}
           >
-            {user.role === "PATIENT" ? "My Cases" : "Open dashboard"}
+            {translate(locale, user.role === "PATIENT" ? "My Cases" : "Open dashboard")}
           </Link>
           <button className="profile-logout" onClick={logout}>
-            <LogOut size={15} /> Log out
+            <LogOut size={15} /> {translate(locale, "Log out")}
           </button>
         </div>
       )}
@@ -111,12 +114,13 @@ export function ProfileMenu() {
 }
 
 export function AppHeader({ staff = false }: { staff?: boolean }) {
+  const locale = useLocale();
   return (
     <header className={`app-header ${staff ? "app-header-staff" : ""}`}>
       <Link
         className="auth-brand"
         to="/"
-        aria-label="Go to SehatSetu AI homepage"
+        aria-label={translate(locale, "Go to SehatSetu AI homepage")}
       >
         <span className="logo-mark">
           <HeartPulse size={17} />
@@ -125,7 +129,10 @@ export function AppHeader({ staff = false }: { staff?: boolean }) {
           SehatSetu <b>AI</b>
         </span>
       </Link>
-      <ProfileMenu />
+      <div className="app-header-actions">
+        <LanguageSelector />
+        <ProfileMenu />
+      </div>
     </header>
   );
 }
