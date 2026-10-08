@@ -12,6 +12,7 @@ export interface ICaseInput extends Document {
   mode: InputMode;
   content: string;
   language?: string;
+  sourceName?: string;
   createdAt: Date;
 }
 
@@ -36,6 +37,12 @@ const caseInputSchema = new Schema<ICaseInput>(
 
     language: {
       type: String,
+    },
+
+    sourceName: {
+      type: String,
+      trim: true,
+      maxlength: 120,
     },
   },
   {

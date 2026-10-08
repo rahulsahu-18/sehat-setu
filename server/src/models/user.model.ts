@@ -10,10 +10,11 @@ export enum UserRole {
 export interface IUser extends Document {
   name: string;
   phoneNo: string;
-  password?: string;
+  password: string;
   role: UserRole;
   patientId?: string;
   email?: string;
+  gender?: "male" | "female" | "other";
   language?: string;
   facilityId?: Types.ObjectId;
   createdAt: Date;
@@ -61,6 +62,12 @@ const userSchema = new Schema<IUser>(
       trim: true,
     },
 
+    gender: {
+      type: String,
+      enum: ["male", "female", "other"],
+      required: false,
+    },
+
     language: {
       type: String,
       default: "en",
@@ -74,7 +81,7 @@ const userSchema = new Schema<IUser>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export const User = mongoose.model<IUser>("User", userSchema);

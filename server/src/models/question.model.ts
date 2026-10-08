@@ -11,6 +11,7 @@ export enum QuestionStatus {
   SENT = "SENT",
   ANSWERED = "ANSWERED",
   REJECTED = "REJECTED",
+  CANCELLED = "CANCELLED",
 }
 
 export interface IQuestion extends Document {
@@ -62,12 +63,9 @@ const questionSchema = new Schema<IQuestion>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 questionSchema.index({ caseId: 1, status: 1 });
 
-export const Question = mongoose.model<IQuestion>(
-  "Question",
-  questionSchema
-);
+export const Question = mongoose.model<IQuestion>("Question", questionSchema);

@@ -1,8 +1,4 @@
-import mongoose, {
-  Document,
-  Schema,
-  Types,
-} from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
 export enum CaseStatus {
   NEW = "NEW",
@@ -30,6 +26,21 @@ export interface ICase extends Document {
   assignedStaffId?: Types.ObjectId;
   status: CaseStatus;
   priority: CasePriority;
+  intakeLanguage: "english" | "hindi" | "odia";
+  consent?: {
+    version: string;
+    acceptedAt: Date;
+  };
+  auditTrail: {
+    action: string;
+    actorId: Types.ObjectId;
+    timestamp: Date;
+    fromStatus?: CaseStatus;
+    toStatus?: CaseStatus;
+    fromPriority?: CasePriority;
+    toPriority?: CasePriority;
+    assignedToId?: Types.ObjectId;
+  }[];
   closedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -74,13 +85,47 @@ const caseSchema = new Schema<ICase>(
       default: CasePriority.ROUTINE,
     },
 
+    intakeLanguage: {
+      type: String,
+      enum: ["english", "hindi", "odia"],
+      required: true,
+    },
+
+    consent: {
+      version: { type: String, trim: true },
+      acceptedAt: { type: Date },
+    },
+
+    auditTrail: {
+      type: [
+        new Schema(
+          {
+            action: { type: String, required: true, trim: true },
+            actorId: {
+              type: Schema.Types.ObjectId,
+              ref: "User",
+              required: true,
+            },
+            timestamp: { type: Date, required: true },
+            fromStatus: { type: String, enum: Object.values(CaseStatus) },
+            toStatus: { type: String, enum: Object.values(CaseStatus) },
+            fromPriority: { type: String, enum: Object.values(CasePriority) },
+            toPriority: { type: String, enum: Object.values(CasePriority) },
+            assignedToId: { type: Schema.Types.ObjectId, ref: "User" },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+
     closedAt: {
       type: Date,
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 caseSchema.index({ facilityId: 1, status: 1 });

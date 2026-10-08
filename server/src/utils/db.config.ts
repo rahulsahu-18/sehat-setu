@@ -10,8 +10,10 @@ export async function connectDB(): Promise<void> {
   try {
     await mongoose.connect(uri);
     console.log("MongoDB connected");
-  } catch (err) {
-    console.error("MongoDB connection error:", err);
+  } catch {
+    console.error(
+      "MongoDB connection failed. Check the database service and configured URI.",
+    );
     process.exit(1);
   }
 }

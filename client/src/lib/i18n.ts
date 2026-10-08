@@ -69,18 +69,18 @@ const translations = {
       accent: "is fragmented.",
       body: "Symptoms, reports, lab results and patient history often arrive in different formats. SehatSetu AI helps bring them together for structured human review.",
       flow: [
-        ["PATIENT INFORMATION", "Voice, text, reports, lab data"],
+        ["PATIENT INFORMATION", "Text intake and selectable-text reports"],
         ["STRUCTURED INFORMATION", "Clear, review-ready triage notes"],
         ["QUALIFIED REVIEW", "Nurse, doctor or medical officer"],
       ],
       cards: [
         [
-          "Voice / Text",
-          "Capture symptoms naturally, in the way patients communicate.",
+          "Text intake",
+          "Capture patient-reported symptoms in written messages.",
         ],
         [
           "Medical Reports",
-          "Extract and summarize important information from documents.",
+          "Extract text from selectable-text PDF, TXT, and CSV reports for human review.",
         ],
         [
           "Structured Triage",
@@ -96,19 +96,19 @@ const translations = {
       cards: [
         [
           "Symptom Collection",
-          "Capture patient-reported symptoms through text or voice.",
+          "Capture patient-reported symptoms through text.",
         ],
         [
           "Medical Report Summarization",
           "Turn lengthy reports into concise structured information.",
         ],
         [
-          "OCR for Lab Reports",
-          "Extract relevant information from uploaded documents.",
+          "PDF text extraction (no OCR)",
+          "Read selectable text from PDFs up to 10 pages. Scans and images are not supported.",
         ],
         [
           "Multilingual Support",
-          "Support English, Hindi and regional Indian languages.",
+          "Patient intake support in English, Hindi, and Odia.",
         ],
         [
           "Urgency & Missing-Information Flags",
@@ -163,7 +163,7 @@ const translations = {
       accent: "to action.",
       body: "A simple, transparent workflow designed around the people who deliver care.",
       steps: [
-        ["PATIENT INPUT", "Text / Voice / Report"],
+        ["PATIENT INPUT", "Text / selectable-text report"],
         ["AI EXTRACTION", "Symptoms / Key details / Missing information"],
         ["TRIAGE SUPPORT", "Urgency signals / Structured summary"],
         ["HUMAN REVIEW", "Nurse / Doctor / Medical Officer"],
@@ -246,14 +246,14 @@ const translations = {
       accent: "बिखरी हुई है।",
       body: "लक्षण, रिपोर्ट, लैब परिणाम और रोगी इतिहास अलग-अलग प्रारूपों में आते हैं। SehatSetu AI उन्हें संरचित मानव समीक्षा के लिए एक साथ लाने में मदद करता है।",
       flow: [
-        ["रोगी की जानकारी", "आवाज़, टेक्स्ट, रिपोर्ट, लैब डेटा"],
+        ["रोगी की जानकारी", "टेक्स्ट और टेक्स्ट-चयन योग्य रिपोर्ट"],
         ["व्यवस्थित जानकारी", "स्पष्ट, समीक्षा-तैयार ट्रायेज नोट्स"],
         ["योग्य समीक्षा", "नर्स, डॉक्टर या चिकित्सा अधिकारी"],
       ],
       cards: [
         [
-          "आवाज़ / टेक्स्ट",
-          "रोगी जिस तरह संवाद करते हैं, उसी तरह लक्षण दर्ज करें।",
+          "लिखित जानकारी",
+          "रोगी द्वारा बताए गए लक्षणों को लिखित संदेशों में दर्ज करें।",
         ],
         [
           "चिकित्सा रिपोर्ट",
@@ -270,17 +270,17 @@ const translations = {
       cards: [
         [
           "लक्षण संग्रह",
-          "टेक्स्ट या आवाज़ के माध्यम से रोगी द्वारा बताए गए लक्षण दर्ज करें।",
+          "रोगी द्वारा बताए गए लक्षणों को टेक्स्ट संदेशों से दर्ज करें।",
         ],
         [
           "चिकित्सा रिपोर्ट सारांश",
           "लंबी रिपोर्ट को संक्षिप्त, व्यवस्थित जानकारी में बदलें।",
         ],
         [
-          "लैब रिपोर्ट के लिए OCR",
-          "अपलोड किए गए दस्तावेज़ों से उपयोगी जानकारी निकालें।",
+          "PDF टेक्स्ट निष्कर्षण (OCR नहीं)",
+          "10 पृष्ठों तक के टेक्स्ट-चयन योग्य PDF पढ़ें। स्कैन और तस्वीरें समर्थित नहीं हैं।",
         ],
-        ["बहुभाषी सहायता", "हिंदी, अंग्रेज़ी और भारतीय भाषाओं में सहायता।"],
+        ["बहुभाषी सहायता", "रोगी इंटेक अंग्रेज़ी, हिंदी और ओड़िया में उपलब्ध।"],
         [
           "तत्कालता और अधूरी जानकारी संकेत",
           "ध्यान या पूर्ति की आवश्यकता वाली जानकारी को उभारें।",
@@ -329,7 +329,7 @@ const translations = {
       accent: "कार्रवाई तक।",
       body: "देखभाल देने वाले लोगों के लिए बनाया गया सरल और पारदर्शी कार्यप्रवाह।",
       steps: [
-        ["रोगी की जानकारी", "टेक्स्ट / आवाज़ / रिपोर्ट"],
+        ["रोगी की जानकारी", "टेक्स्ट / टेक्स्ट-चयन योग्य रिपोर्ट"],
         ["AI निष्कर्षण", "लक्षण / मुख्य विवरण / अधूरी जानकारी"],
         ["ट्रायेज सहायता", "तत्कालता संकेत / व्यवस्थित सारांश"],
         ["मानव समीक्षा", "नर्स / डॉक्टर / चिकित्सा अधिकारी"],
@@ -413,14 +413,14 @@ const translations = {
       accent: "ବିଭିନ୍ନ ସ୍ଥାନରେ ରହେ।",
       body: "ଲକ୍ଷଣ, ରିପୋର୍ଟ, ଲ୍ୟାବ୍ ଫଳାଫଳ ଏବଂ ରୋଗୀ ଇତିହାସ ଭିନ୍ନ ରୂପରେ ଆସେ। SehatSetu AI ସେଗୁଡ଼ିକୁ ମାନବ ସମୀକ୍ଷା ପାଇଁ ଏକତ୍ର କରିବାରେ ସାହାଯ୍ୟ କରେ।",
       flow: [
-        ["ରୋଗୀଙ୍କ ସୂଚନା", "ସ୍ୱର, ଟେକ୍ସଟ୍, ରିପୋର୍ଟ, ଲ୍ୟାବ୍ ତଥ୍ୟ"],
+        ["ରୋଗୀଙ୍କ ସୂଚନା", "ଟେକ୍ସଟ୍ ଏବଂ ଚୟନଯୋଗ୍ୟ ଲେଖା ରିପୋର୍ଟ"],
         ["ସୁସଂଗଠିତ ସୂଚନା", "ସ୍ପଷ୍ଟ, ସମୀକ୍ଷା-ପ୍ରସ୍ତୁତ ଟ୍ରାଏଜ୍ ନୋଟ୍"],
         ["ଯୋଗ୍ୟ ସମୀକ୍ଷା", "ନର୍ସ, ଡାକ୍ତର କିମ୍ବା ଚିକିତ୍ସା ଅଧିକାରୀ"],
       ],
       cards: [
         [
-          "ସ୍ୱର / ଟେକ୍ସଟ୍",
-          "ରୋଗୀମାନେ ଯେପରି କଥା ହୁଅନ୍ତି, ସେହିପରି ଲକ୍ଷଣ ରେକର୍ଡ କରନ୍ତୁ।",
+          "ଲିଖିତ ତଥ୍ୟ",
+          "ରୋଗୀଙ୍କ ଲକ୍ଷଣକୁ ଲିଖିତ ବାର୍ତ୍ତାରେ ରେକର୍ଡ କରନ୍ତୁ।",
         ],
         [
           "ଚିକିତ୍ସା ରିପୋର୍ଟ",
@@ -440,17 +440,17 @@ const translations = {
       cards: [
         [
           "ଲକ୍ଷଣ ସଂଗ୍ରହ",
-          "ଟେକ୍ସଟ୍ କିମ୍ବା ସ୍ୱର ମାଧ୍ୟମରେ ରୋଗୀଙ୍କ ଲକ୍ଷଣ ରେକର୍ଡ କରନ୍ତୁ।",
+          "ରୋଗୀଙ୍କ ଲକ୍ଷଣକୁ ଟେକ୍ସଟ୍ ବାର୍ତ୍ତାରେ ରେକର୍ଡ କରନ୍ତୁ।",
         ],
         [
           "ଚିକିତ୍ସା ରିପୋର୍ଟ ସାରାଂଶ",
           "ଦୀର୍ଘ ରିପୋର୍ଟକୁ ସଂକ୍ଷିପ୍ତ, ସୁସଂଗଠିତ ସୂଚନାରେ ବଦଳାନ୍ତୁ।",
         ],
         [
-          "ଲ୍ୟାବ୍ ରିପୋର୍ଟ ପାଇଁ OCR",
-          "ଅପଲୋଡ୍ ହୋଇଥିବା ଦସ୍ତାବିଜରୁ ଆବଶ୍ୟକ ସୂଚନା ବାହାର କରନ୍ତୁ।",
+          "PDF ଟେକ୍ସଟ୍ ବାହାର କରିବା (OCR ନୁହେଁ)",
+          "10 ପୃଷ୍ଠା ପର୍ଯ୍ୟନ୍ତ ଚୟନଯୋଗ୍ୟ ଟେକ୍ସଟ୍ PDF ପଢ଼ନ୍ତୁ। ସ୍କାନ୍ ଓ ଚିତ୍ର ସମର୍ଥିତ ନୁହେଁ।",
         ],
-        ["ବହୁଭାଷୀ ସହାୟତା", "ଓଡ଼ିଆ, ହିନ୍ଦୀ, ଇଂରାଜୀ ଏବଂ ଭାରତୀୟ ଭାଷାରେ ସହାୟତା।"],
+        ["ବହୁଭାଷୀ ସହାୟତା", "ରୋଗୀଙ୍କ ଇନଟେକ୍ ଇଂରାଜୀ, ହିନ୍ଦୀ ଓ ଓଡ଼ିଆରେ ଉପଲବ୍ଧ।"],
         [
           "ତତ୍କାଳତା ଏବଂ ଅପୂର୍ଣ୍ଣ ସୂଚନା ସଙ୍କେତ",
           "ଧ୍ୟାନ କିମ୍ବା ପୂରଣ ଆବଶ୍ୟକ ସୂଚନାକୁ ଚିହ୍ନଟ କରନ୍ତୁ।",
@@ -504,7 +504,7 @@ const translations = {
       accent: "କାର୍ଯ୍ୟ ପର୍ଯ୍ୟନ୍ତ।",
       body: "ଯତ୍ନ ପ୍ରଦାନ କରୁଥିବା ଲୋକଙ୍କ ପାଇଁ ଏକ ସରଳ, ସ୍ୱଚ୍ଛ କାର୍ଯ୍ୟପ୍ରବାହ।",
       steps: [
-        ["ରୋଗୀଙ୍କ ସୂଚନା", "ଟେକ୍ସଟ୍ / ସ୍ୱର / ରିପୋର୍ଟ"],
+        ["ରୋଗୀଙ୍କ ସୂଚନା", "ଟେକ୍ସଟ୍ / ଚୟନଯୋଗ୍ୟ ଲେଖା ରିପୋର୍ଟ"],
         ["AI ନିଷ୍କର୍ଷଣ", "ଲକ୍ଷଣ / ମୁଖ୍ୟ ବିବରଣୀ / ଅପୂର୍ଣ୍ଣ ସୂଚନା"],
         ["ଟ୍ରାଏଜ୍ ସହାୟତା", "ତତ୍କାଳତା ସଙ୍କେତ / ସୁସଂଗଠିତ ସାରାଂଶ"],
         ["ମାନବ ସମୀକ୍ଷା", "ନର୍ସ / ଡାକ୍ତର / ଚିକିତ୍ସା ଅଧିକାରୀ"],
@@ -560,4 +560,203 @@ export function setLocale(locale: Locale) {
   );
   window.dispatchEvent(new Event("localechange"));
 }
+
+const patientTranslations = {
+  en: {
+    setupTitle: "Let's prepare your intake.",
+    setupBody: "Choose your care facility and the language you want to use.",
+    facility: "Select facility",
+    chooseFacility: "Choose a facility",
+    intakeLanguage: "Intake language",
+    syntheticConsent:
+      "I will use synthetic demo information only, not real patient data. Text and report extracts are shared with the configured AI provider and this facility's care team. This prototype does not diagnose or recommend treatment.",
+    startIntake: "Start intake",
+    startNewCase: "Start new case",
+    casesTitle: "My Cases",
+    casesBody: "Review your cases, status, and care-team updates.",
+    noCases: "No cases yet",
+    noCasesBody: "Your cases will appear here after you start an intake.",
+    openCase: "View case",
+    answerQuestions: "Answer care-team questions",
+    completedNotice:
+      "Open this case to review your care team's next steps. If none are listed, contact the facility to confirm what to do.",
+    deleteCase: "Delete case data",
+    retention: "Scheduled for permanent deletion on {date}.",
+    deleteAccount: "Delete my account and all data",
+    deleteAccountConfirm:
+      "This permanently deletes your account and all linked case data. Type DELETE to confirm.",
+    deleteConfirm:
+      "Permanently delete this case and its intake, report, summary, question, and review data? This cannot be undone.",
+    intakeTitle: "Tell us what brings you in.",
+    intakeMode: "TEXT INTAKE",
+    intakeBody:
+      "Describe what is bothering you and when it started. This prepares information for your care team.",
+    consentTitle: "Before continuing",
+    consentBody:
+      "Use synthetic demo text only. Do not enter real patient information. Your text and extracted report text are sent to the configured AI provider and shared with this facility's care team. This prototype does not diagnose or recommend treatment.",
+    agreeContinue: "Agree and continue",
+    reportTitle: "Add a medical report",
+    reportHelp:
+      "PDF with selectable text, TXT, or CSV · up to 5 MB. Scanned PDFs and images are not supported. Extracted text is saved to this case for care-team review.",
+    uploadReport: "Upload report",
+    extracting: "Extracting...",
+    messagePlaceholder: "Write your message...",
+    sendMessage: "Send message",
+    summaryTitle: "Intake summary",
+    summaryLoading: "Your summary will develop as you answer a few questions.",
+    timeline: "Reported timeline · verify with patient",
+    emergencyWarning: "Possible emergency warning",
+    loadingConversation: "Loading your conversation...",
+    loadingFollowUp: "Preparing a follow-up...",
+    reviewQuestions: "Still useful to know",
+    contradictions: "Conflicting details to clarify",
+    urgencySignals: "Needs attention",
+    priorityReviewTitle: "Priority review",
+    priorityReviewBody:
+      "Your care team placed this case in a priority review queue. Open the case for messages or questions. If you need help before you receive a response, contact the facility directly rather than waiting for this app. This label is not a diagnosis.",
+    urgentReviewTitle: "Urgent: contact your care facility",
+    urgentReviewBody:
+      "This case has been flagged for prompt human review. This app is not monitored continuously and cannot contact staff or emergency services for you. Contact your care facility now to confirm what to do. If you believe this is an emergency, call 112 in India or go to the nearest emergency department.",
+    guidanceTitle: "Care-team guidance",
+    noGuidanceTitle: "No care-team instructions are recorded",
+    noGuidanceBody:
+      "This case is marked complete, but no next steps have been shared here. Contact your care facility to confirm what to do. If this is an emergency, call your local emergency number or go to the nearest emergency department.",
+    messagingPaused: "Messaging is paused while your care team reviews this case.",
+    disclaimer:
+      "Synthetic demo information only. This assistant does not diagnose or recommend treatment.",
+  },
+  hi: {
+    setupTitle: "आइए, आपकी जानकारी तैयार करें।",
+    setupBody: "अपनी स्वास्थ्य सुविधा और उपयोग की भाषा चुनें।",
+    facility: "स्वास्थ्य सुविधा चुनें",
+    chooseFacility: "सुविधा चुनें",
+    intakeLanguage: "जानकारी देने की भाषा",
+    syntheticConsent:
+      "मैं केवल कृत्रिम डेमो जानकारी दूँगा/दूँगी, असली मरीज़ का डेटा नहीं। टेक्स्ट और रिपोर्ट से निकाली गई जानकारी AI सेवा और इस सुविधा की स्वास्थ्य टीम के साथ साझा होगी। यह प्रोटोटाइप बीमारी का निदान या उपचार की सलाह नहीं देता।",
+    startIntake: "जानकारी देना शुरू करें",
+    startNewCase: "नया मामला शुरू करें",
+    casesTitle: "मेरे मामले",
+    casesBody: "अपने मामले, उनकी स्थिति और स्वास्थ्य टीम के अपडेट देखें।",
+    noCases: "अभी कोई मामला नहीं",
+    noCasesBody: "जानकारी देना शुरू करने के बाद आपके मामले यहाँ दिखेंगे।",
+    openCase: "मामला देखें",
+    answerQuestions: "स्वास्थ्य टीम के सवालों के जवाब दें",
+    completedNotice:
+      "स्वास्थ्य टीम के अगले कदम देखने के लिए मामला खोलें। अगर निर्देश नहीं हैं, तो क्या करना है जानने के लिए सुविधा से संपर्क करें।",
+    deleteCase: "मामले का डेटा मिटाएँ",
+    retention: "इसका डेटा {date} को हमेशा के लिए मिटा दिया जाएगा।",
+    deleteAccount: "मेरा खाता और सारा डेटा मिटाएँ",
+    deleteAccountConfirm:
+      "इससे आपका खाता और उससे जुड़ा सारा मामला डेटा हमेशा के लिए मिट जाएगा। पुष्टि के लिए DELETE लिखें।",
+    deleteConfirm:
+      "क्या इस मामले की जानकारी, रिपोर्ट, सारांश, सवाल और समीक्षा डेटा हमेशा के लिए मिटाना है? इसे वापस नहीं लाया जा सकता।",
+    intakeTitle: "बताइए, आप यहाँ क्यों आए हैं।",
+    intakeMode: "लिखित जानकारी",
+    intakeBody:
+      "बताइए कि क्या परेशानी है और यह कब शुरू हुई। इससे स्वास्थ्य टीम के लिए जानकारी तैयार होगी।",
+    consentTitle: "आगे बढ़ने से पहले",
+    consentBody:
+      "केवल कृत्रिम डेमो टेक्स्ट दें। असली मरीज़ की जानकारी न डालें। आपका टेक्स्ट और रिपोर्ट से निकाला गया टेक्स्ट AI सेवा और इस सुविधा की स्वास्थ्य टीम के साथ साझा होगा। यह प्रोटोटाइप निदान या उपचार की सलाह नहीं देता।",
+    agreeContinue: "सहमति दें और आगे बढ़ें",
+    reportTitle: "मेडिकल रिपोर्ट जोड़ें",
+    reportHelp:
+      "चुने जा सकने वाले टेक्स्ट वाला PDF, TXT या CSV · अधिकतम 5 MB। स्कैन किए गए PDF और तस्वीरें समर्थित नहीं हैं। निकाला गया टेक्स्ट स्वास्थ्य टीम की समीक्षा के लिए इस मामले में सहेजा जाएगा।",
+    uploadReport: "रिपोर्ट अपलोड करें",
+    extracting: "टेक्स्ट निकाला जा रहा है...",
+    messagePlaceholder: "अपना संदेश लिखें...",
+    sendMessage: "संदेश भेजें",
+    summaryTitle: "जानकारी का सारांश",
+    summaryLoading: "आपके जवाबों के साथ सारांश तैयार होगा।",
+    timeline: "बताई गई समयरेखा · मरीज़ से पुष्टि करें",
+    emergencyWarning: "आपात स्थिति की आशंका",
+    loadingConversation: "आपकी बातचीत लोड हो रही है...",
+    loadingFollowUp: "अगला सवाल तैयार हो रहा है...",
+    reviewQuestions: "इन बातों की जानकारी उपयोगी होगी",
+    contradictions: "विरोधाभासी जानकारी स्पष्ट करें",
+    urgencySignals: "ध्यान देने की ज़रूरत",
+    priorityReviewTitle: "प्राथमिकता से समीक्षा",
+    priorityReviewBody:
+      "आपकी स्वास्थ्य टीम ने इस मामले को प्राथमिकता से समीक्षा के लिए रखा है। संदेश या सवाल देखने के लिए मामला खोलें। जवाब मिलने से पहले मदद चाहिए, तो इस ऐप का इंतज़ार करने के बजाय सीधे स्वास्थ्य सुविधा से संपर्क करें। यह लेबल बीमारी का निदान नहीं है।",
+    urgentReviewTitle: "तत्काल: स्वास्थ्य सुविधा से संपर्क करें",
+    urgentReviewBody:
+      "इस मामले को स्वास्थ्यकर्मी द्वारा शीघ्र समीक्षा के लिए चिह्नित किया गया है। यह ऐप लगातार निगरानी नहीं करता और आपकी ओर से स्वास्थ्यकर्मियों या आपातकालीन सेवाओं से संपर्क नहीं कर सकता। आगे क्या करना है, इसकी पुष्टि के लिए अभी अपनी स्वास्थ्य सुविधा से संपर्क करें। आपात स्थिति लगे तो भारत में 112 पर कॉल करें या नज़दीकी आपातकालीन विभाग जाएँ।",
+    guidanceTitle: "स्वास्थ्य टीम की सलाह",
+    noGuidanceTitle: "स्वास्थ्य टीम के निर्देश दर्ज नहीं हैं",
+    noGuidanceBody:
+      "यह मामला पूरा दिखाया गया है, लेकिन आगे के कदम यहाँ साझा नहीं किए गए हैं। क्या करना है, इसकी पुष्टि के लिए स्वास्थ्य सुविधा से संपर्क करें। आपात स्थिति में स्थानीय आपातकालीन नंबर पर कॉल करें या नज़दीकी आपातकालीन विभाग जाएँ।",
+    messagingPaused: "स्वास्थ्य टीम की समीक्षा के दौरान संदेश भेजना रुका हुआ है।",
+    disclaimer:
+      "केवल कृत्रिम डेमो जानकारी। यह सहायक बीमारी का निदान या उपचार की सलाह नहीं देता।",
+  },
+  or: {
+    setupTitle: "ଆସନ୍ତୁ, ଆପଣଙ୍କ ତଥ୍ୟ ପ୍ରସ୍ତୁତ କରିବା।",
+    setupBody: "ଆପଣଙ୍କ ସ୍ୱାସ୍ଥ୍ୟ କେନ୍ଦ୍ର ଓ ପସନ୍ଦର ଭାଷା ବାଛନ୍ତୁ।",
+    facility: "ସ୍ୱାସ୍ଥ୍ୟ କେନ୍ଦ୍ର ବାଛନ୍ତୁ",
+    chooseFacility: "ଏକ କେନ୍ଦ୍ର ବାଛନ୍ତୁ",
+    intakeLanguage: "ତଥ୍ୟ ଦେବାର ଭାଷା",
+    syntheticConsent:
+      "ମୁଁ କେବଳ କୃତ୍ରିମ ଡେମୋ ତଥ୍ୟ ବ୍ୟବହାର କରିବି, ପ୍ରକୃତ ରୋଗୀଙ୍କ ତଥ୍ୟ ନୁହେଁ। ଲେଖା ଓ ରିପୋର୍ଟରୁ ବାହାର କରାଯାଇଥିବା ତଥ୍ୟ AI ସେବା ଏବଂ ଏହି କେନ୍ଦ୍ରର ସ୍ୱାସ୍ଥ୍ୟ ଦଳ ସହିତ ବାଣ୍ଟାଯିବ। ଏହି ପ୍ରୋଟୋଟାଇପ୍ ରୋଗ ନିର୍ଣ୍ଣୟ କିମ୍ବା ଚିକିତ୍ସା ପରାମର୍ଶ ଦିଏ ନାହିଁ।",
+    startIntake: "ତଥ୍ୟ ଦେବା ଆରମ୍ଭ କରନ୍ତୁ",
+    startNewCase: "ନୂଆ ମାମଲା ଆରମ୍ଭ କରନ୍ତୁ",
+    casesTitle: "ମୋର ମାମଲା",
+    casesBody: "ମାମଲାର ସ୍ଥିତି ଓ ସ୍ୱାସ୍ଥ୍ୟ ଦଳର ଅଦ୍ୟତନ ଦେଖନ୍ତୁ।",
+    noCases: "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ମାମଲା ନାହିଁ",
+    noCasesBody: "ତଥ୍ୟ ଦେବା ଆରମ୍ଭ କଲେ ଆପଣଙ୍କ ମାମଲା ଏଠାରେ ଦେଖାଯିବ।",
+    openCase: "ମାମଲା ଦେଖନ୍ତୁ",
+    answerQuestions: "ସ୍ୱାସ୍ଥ୍ୟ ଦଳର ପ୍ରଶ୍ନର ଉତ୍ତର ଦିଅନ୍ତୁ",
+    completedNotice:
+      "ସ୍ୱାସ୍ଥ୍ୟ ଦଳର ପରବର୍ତ୍ତୀ ପଦକ୍ଷେପ ଦେଖିବାକୁ ମାମଲା ଖୋଲନ୍ତୁ। ନିର୍ଦ୍ଦେଶ ନଥିଲେ କଣ କରିବେ ଜାଣିବା ପାଇଁ କେନ୍ଦ୍ର ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ।",
+    deleteCase: "ମାମଲାର ତଥ୍ୟ ହଟାନ୍ତୁ",
+    retention: "ଏହି ତଥ୍ୟ {date} ରେ ସବୁଦିନ ପାଇଁ ହଟାଯିବ।",
+    deleteAccount: "ମୋ ଖାତା ଓ ସମସ୍ତ ତଥ୍ୟ ହଟାନ୍ତୁ",
+    deleteAccountConfirm:
+      "ଏହା ଆପଣଙ୍କ ଖାତା ଏବଂ ସମସ୍ତ ସଂଯୁକ୍ତ ମାମଲା ତଥ୍ୟକୁ ସବୁଦିନ ପାଇଁ ହଟାଇଦେବ। ନିଶ୍ଚିତ କରିବାକୁ DELETE ଲେଖନ୍ତୁ।",
+    deleteConfirm:
+      "ଏହି ମାମଲାର ତଥ୍ୟ, ରିପୋର୍ଟ, ସାରାଂଶ, ପ୍ରଶ୍ନ ଓ ସମୀକ୍ଷା ତଥ୍ୟ ସବୁଦିନ ପାଇଁ ହଟାଇବେ କି? ଏହାକୁ ଫେରାଇ ଅଣାଯାଇପାରିବ ନାହିଁ।",
+    intakeTitle: "ଆପଣଙ୍କୁ କଣ ଅସୁବିଧା ହେଉଛି କୁହନ୍ତୁ।",
+    intakeMode: "ଲିଖିତ ତଥ୍ୟ",
+    intakeBody:
+      "କେଉଁ ଅସୁବିଧା ହେଉଛି ଏବଂ କେବେ ଆରମ୍ଭ ହେଲା କୁହନ୍ତୁ। ଏହା ସ୍ୱାସ୍ଥ୍ୟ ଦଳ ପାଇଁ ତଥ୍ୟ ପ୍ରସ୍ତୁତ କରିବ।",
+    consentTitle: "ଆଗକୁ ବଢ଼ିବା ପୂର୍ବରୁ",
+    consentBody:
+      "କେବଳ କୃତ୍ରିମ ଡେମୋ ଲେଖା ବ୍ୟବହାର କରନ୍ତୁ। ପ୍ରକୃତ ରୋଗୀଙ୍କ ତଥ୍ୟ ଦିଅନ୍ତୁ ନାହିଁ। ଆପଣଙ୍କ ଲେଖା ଓ ରିପୋର୍ଟରୁ ବାହାର କରାଯାଇଥିବା ଲେଖା AI ସେବା ଓ ଏହି କେନ୍ଦ୍ରର ସ୍ୱାସ୍ଥ୍ୟ ଦଳ ସହିତ ବାଣ୍ଟାଯିବ। ଏହି ପ୍ରୋଟୋଟାଇପ୍ ରୋଗ ନିର୍ଣ୍ଣୟ କିମ୍ବା ଚିକିତ୍ସା ପରାମର୍ଶ ଦିଏ ନାହିଁ।",
+    agreeContinue: "ସମ୍ମତି ଦେଇ ଆଗକୁ ବଢ଼ନ୍ତୁ",
+    reportTitle: "ମେଡିକାଲ୍ ରିପୋର୍ଟ ଯୋଡ଼ନ୍ତୁ",
+    reportHelp:
+      "ଚୟନଯୋଗ୍ୟ ଲେଖା ଥିବା PDF, TXT କିମ୍ବା CSV · ସର୍ବାଧିକ 5 MB। ସ୍କାନ୍ କରାଯାଇଥିବା PDF ଓ ଚିତ୍ର ସମର୍ଥିତ ନୁହେଁ। ବାହାର କରାଯାଇଥିବା ଲେଖା ସ୍ୱାସ୍ଥ୍ୟ ଦଳର ସମୀକ୍ଷା ପାଇଁ ଏହି ମାମଲାରେ ସଞ୍ଚୟ ହେବ।",
+    uploadReport: "ରିପୋର୍ଟ ଅପଲୋଡ୍ କରନ୍ତୁ",
+    extracting: "ଲେଖା ବାହାର କରାଯାଉଛି...",
+    messagePlaceholder: "ଆପଣଙ୍କ ବାର୍ତ୍ତା ଲେଖନ୍ତୁ...",
+    sendMessage: "ବାର୍ତ୍ତା ପଠାନ୍ତୁ",
+    summaryTitle: "ତଥ୍ୟର ସାରାଂଶ",
+    summaryLoading: "ଆପଣଙ୍କ ଉତ୍ତର ସହିତ ସାରାଂଶ ପ୍ରସ୍ତୁତ ହେବ।",
+    timeline: "କୁହାଯାଇଥିବା ସମୟରେଖା · ରୋଗୀଙ୍କଠାରୁ ଯାଞ୍ଚ କରନ୍ତୁ",
+    emergencyWarning: "ଜରୁରୀ ପରିସ୍ଥିତିର ସମ୍ଭାବ୍ୟ ସତର୍କତା",
+    loadingConversation: "ଆପଣଙ୍କ ବାର୍ତ୍ତାଳାପ ଲୋଡ୍ ହେଉଛି...",
+    loadingFollowUp: "ପରବର୍ତ୍ତୀ ପ୍ରଶ୍ନ ପ୍ରସ୍ତୁତ ହେଉଛି...",
+    reviewQuestions: "ଏହି ତଥ୍ୟ ଜାଣିବା ଉପଯୋଗୀ ହେବ",
+    contradictions: "ପରସ୍ପର ବିରୋଧୀ ତଥ୍ୟ ସ୍ପଷ୍ଟ କରନ୍ତୁ",
+    urgencySignals: "ଧ୍ୟାନ ଦେବା ଆବଶ୍ୟକ",
+    priorityReviewTitle: "ପ୍ରାଥମିକତା ଭିତ୍ତିକ ସମୀକ୍ଷା",
+    priorityReviewBody:
+      "ଆପଣଙ୍କ ସ୍ୱାସ୍ଥ୍ୟ ଦଳ ଏହି ମାମଲାକୁ ପ୍ରାଥମିକତା ଭିତ୍ତିକ ସମୀକ୍ଷା ପାଇଁ ରଖିଛନ୍ତି। ବାର୍ତ୍ତା କିମ୍ବା ପ୍ରଶ୍ନ ଦେଖିବାକୁ ମାମଲା ଖୋଲନ୍ତୁ। ଉତ୍ତର ପୂର୍ବରୁ ସହାୟତା ଦରକାର ହେଲେ, ଏହି ଆପ୍‌କୁ ଅପେକ୍ଷା ନକରି ସିଧାସଳଖ ସ୍ୱାସ୍ଥ୍ୟ କେନ୍ଦ୍ର ସହ ଯୋଗାଯୋଗ କରନ୍ତୁ। ଏହି ଲେବଲ୍ ରୋଗ ନିର୍ଣ୍ଣୟ ନୁହେଁ।",
+    urgentReviewTitle: "ଜରୁରୀ: ସ୍ୱାସ୍ଥ୍ୟ କେନ୍ଦ୍ର ସହ ଯୋଗାଯୋଗ କରନ୍ତୁ",
+    urgentReviewBody:
+      "ଏହି ମାମଲାକୁ ସ୍ୱାସ୍ଥ୍ୟକର୍ମୀଙ୍କ ଶୀଘ୍ର ସମୀକ୍ଷା ପାଇଁ ଚିହ୍ନିତ କରାଯାଇଛି। ଏହି ଆପ୍ ଲଗାତାର ନଜର ରଖେ ନାହିଁ ଏବଂ ଆପଣଙ୍କ ପକ୍ଷରୁ ସ୍ୱାସ୍ଥ୍ୟକର୍ମୀ କିମ୍ବା ଜରୁରୀକାଳୀନ ସେବାକୁ ଯୋଗାଯୋଗ କରିପାରେ ନାହିଁ। କଣ କରିବେ ଜାଣିବାକୁ ଏବେ ଆପଣଙ୍କ ସ୍ୱାସ୍ଥ୍ୟ କେନ୍ଦ୍ର ସହ ଯୋଗାଯୋଗ କରନ୍ତୁ। ଜରୁରୀ ପରିସ୍ଥିତି ବୋଲି ଲାଗିଲେ, ଭାରତରେ 112 କୁ କଲ୍ କରନ୍ତୁ କିମ୍ବା ନିକଟସ୍ଥ ଜରୁରୀକାଳୀନ ବିଭାଗକୁ ଯାଆନ୍ତୁ।",
+    guidanceTitle: "ସ୍ୱାସ୍ଥ୍ୟ ଦଳର ନିର୍ଦ୍ଦେଶ",
+    noGuidanceTitle: "ସ୍ୱାସ୍ଥ୍ୟ ଦଳର ନିର୍ଦ୍ଦେଶ ଲେଖାଯାଇନାହିଁ",
+    noGuidanceBody:
+      "ଏହି ମାମଲା ସମ୍ପୂର୍ଣ୍ଣ ବୋଲି ଦେଖାଯାଉଛି, କିନ୍ତୁ ପରବର୍ତ୍ତୀ ପଦକ୍ଷେପ ଏଠାରେ ଦିଆଯାଇନାହିଁ। କଣ କରିବେ ଜାଣିବା ପାଇଁ ସ୍ୱାସ୍ଥ୍ୟ କେନ୍ଦ୍ର ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ। ଜରୁରୀ ପରିସ୍ଥିତିରେ ସ୍ଥାନୀୟ ଜରୁରୀକାଳୀନ ନମ୍ବରକୁ ଫୋନ୍ କରନ୍ତୁ କିମ୍ବା ନିକଟସ୍ଥ ଜରୁରୀକାଳୀନ ବିଭାଗକୁ ଯାଆନ୍ତୁ।",
+    messagingPaused: "ସ୍ୱାସ୍ଥ୍ୟ ଦଳ ଏହି ମାମଲା ସମୀକ୍ଷା କରୁଥିବାରୁ ବାର୍ତ୍ତା ପଠାଇବା ବନ୍ଦ ଅଛି।",
+    disclaimer:
+      "କେବଳ କୃତ୍ରିମ ଡେମୋ ତଥ୍ୟ। ଏହି ସହାୟକ ରୋଗ ନିର୍ଣ୍ଣୟ କିମ୍ବା ଚିକିତ୍ସା ପରାମର୍ଶ ଦିଏ ନାହିଁ।",
+  },
+} satisfies Record<Locale, Record<string, string>>;
+
+export type PatientCopy = (typeof patientTranslations)["en"];
+
+export function getPatientCopy(locale: Locale): PatientCopy {
+  return patientTranslations[locale];
+}
+
 export default translations;

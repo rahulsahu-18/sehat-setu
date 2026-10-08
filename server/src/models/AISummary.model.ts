@@ -2,14 +2,27 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface IAISummaryData {
   summary: string;
-
   missingInformation: string[];
-
+  contradictions?: string[];
+  timeline?: { when: string; event: string; source: string }[];
   urgencySignals: {
     signal: string;
     confidence?: string;
     source?: string;
   }[];
+  deterministicSafetyFlags?: {
+    ruleId: string;
+    status: "POSSIBLY_PRESENT" | "UNCERTAIN" | "CONFLICTING_REPORTS";
+    reportedTerm: string;
+    reason: string;
+    instruction: string;
+    reviewRequired: true;
+  }[];
+  conversation?: { role: "user" | "assistant"; content: string }[];
+  conversationSource?: string;
+  followUpQuestions?: string[];
+  followUpQuestion?: string | null;
+  complete?: boolean;
 
   [key: string]: unknown;
 }
@@ -41,15 +54,12 @@ const aiSummarySchema = new Schema<IAISummary>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-aiSummarySchema.index(
-  { caseId: 1, version: 1 },
-  { unique: true }
-);
+aiSummarySchema.index({ caseId: 1, version: 1 }, { unique: true });
 
 export const AISummary = mongoose.model<IAISummary>(
   "AISummary",
-  aiSummarySchema
+  aiSummarySchema,
 );
