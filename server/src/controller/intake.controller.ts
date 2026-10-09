@@ -532,12 +532,28 @@ export const addPatientIntakeInput = async (
           (message, question) => message.replace(question, "").trim(),
           reply.message,
         );
-    const safeAssistantMessage = assistantMessage;
+    const budgetAfterReply = pendingQuestions.length
+      ? intakeBudget
+      : getIntakeQuestionBudget([
+          ...history,
+          { role: "user" as const, content: content.trim() },
+          { role: "assistant" as const, content: assistantMessage },
+        ]);
+    // If the model emits more questions than remain in the budget, do not
+    // deliver that over-budget response; save the answer and hand the case to
+    // the care team instead.
+    const questionLimitReached = !pendingQuestions.length && budgetAfterReply.overLimit;
+    const safeAssistantMessage = safetyFlags.length
+      ? safetyFlags[0]?.instruction || assistantMessage
+      : questionLimitReached
+        ? "Thank you. I have saved your information for a qualified healthcare professional to review. This assistant does not diagnose or prescribe."
+        : assistantMessage;
+    const safeFollowUpQuestions = questionLimitReached ? [] : followUpQuestions;
     const previousStatus = caseRecord.status;
     const previousPriority = caseRecord.priority;
     const nextStatus = safetyFlags.length
       ? CaseStatus.ESCALATED
-      : reply.complete
+      : reply.complete || questionLimitReached
         ? CaseStatus.WAITING_FOR_REVIEW
         : CaseStatus.AI_PROCESSING;
     if (!isAllowedStatusTransition(previousStatus, nextStatus)) {
@@ -580,14 +596,19 @@ export const addPatientIntakeInput = async (
         urgencySignals: reply.urgencySignals,
         deterministicSafetyFlags: safetyFlags,
         conversationSource: "server-generated-v1",
-        followUpQuestions,
-        complete: reply.complete,
+        followUpQuestions: safeFollowUpQuestions,
+        complete: reply.complete || questionLimitReached,
+        questionBudget: {
+          used: budgetAfterReply.used,
+          maxQuestions: MAX_AI_INTAKE_QUESTIONS,
+          remaining: budgetAfterReply.remaining,
+        },
       },
     );
 
-    if (followUpQuestions.length && !safetyFlags.length) {
+    if (safeFollowUpQuestions.length && !safetyFlags.length) {
       await Question.insertMany(
-        followUpQuestions.map((question) => ({
+        safeFollowUpQuestions.map((question) => ({
           caseId: caseRecord._id,
           question,
           source: QuestionSource.AI,
@@ -624,11 +645,16 @@ export const addPatientIntakeInput = async (
         timeline: reply.timeline,
         urgencySignals: reply.urgencySignals,
         deterministicSafetyFlags: safetyFlags,
-        followUpQuestions,
+        followUpQuestions: safeFollowUpQuestions,
         staffReviewPending: Boolean(
-          followUpQuestions.length && !safetyFlags.length,
+          safeFollowUpQuestions.length && !safetyFlags.length,
         ),
-        complete: reply.complete,
+        complete: reply.complete || questionLimitReached,
+        questionBudget: {
+          used: budgetAfterReply.used,
+          maxQuestions: MAX_AI_INTAKE_QUESTIONS,
+          remaining: budgetAfterReply.remaining,
+        },
       },
     });
   } catch (error) {
