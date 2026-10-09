@@ -69,3 +69,23 @@ export async function notifyCareTeamAnswer(
     dedupeKey: `follow-up-answered:${questionId.toString()}:${recipientId.toString()}`,
   })));
 }
+
+
+export async function notifyPatientCaseReview(
+  caseId: Types.ObjectId,
+  decisionId: Types.ObjectId,
+  actorId: Types.ObjectId,
+  completed: boolean,
+) {
+  const caseRecord = await Case.findById(caseId).select("patientId");
+  if (!caseRecord) return;
+  await upsertNotification({
+    recipientId: caseRecord.patientId,
+    actorId,
+    caseId,
+    type: NotificationType.CASE_REVIEW_UPDATED,
+    title: completed ? "Your case review is complete" : "Your care team updated your case",
+    message: "Your case status was updated. Sign in to view patient-visible information.",
+    dedupeKey: "case-review:" + decisionId.toString(),
+  });
+}
