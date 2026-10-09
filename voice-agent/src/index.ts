@@ -137,7 +137,7 @@ export default defineAgent({
       });
       tts = new openai.TTS({
         model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
-        voice: process.env.OPENAI_TTS_VOICE || "alloy",
+        voice: "alloy",
         instructions: "Speak clear, natural English. Read the supplied clinician question faithfully.",
       });
     } else {
@@ -149,12 +149,12 @@ export default defineAgent({
       const sarvamLanguage = sarvamLanguageCodes[followUp.language];
       stt = new sarvam.STT({
         languageCode: sarvamLanguage,
-        model: process.env.SARVAM_STT_MODEL || "saaras:v3",
+        model: "saaras:v3",
         mode: "transcribe",
       });
       tts = new sarvam.TTS({
         targetLanguageCode: sarvamLanguage,
-        model: process.env.SARVAM_TTS_MODEL || "bulbul:v3",
+        model: "bulbul:v3",
         speaker: process.env.SARVAM_TTS_SPEAKER || "shubh",
         pace: 1.0,
       });
