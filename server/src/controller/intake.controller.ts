@@ -366,7 +366,7 @@ export const addPatientIntakeInput = async (
       caseRecord.status === CaseStatus.WAITING_FOR_PATIENT
         ? await Question.find({
             caseId: caseRecord._id,
-            status: QuestionStatus.SENT,
+            status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
           }).sort({ createdAt: 1 })
         : [];
 
