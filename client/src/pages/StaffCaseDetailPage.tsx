@@ -241,6 +241,22 @@ function StaffCaseDetailPage() {
     }
   };
 
+  const reviewFollowUpAnswer = async (questionId: string) => {
+    if (!caseId) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await api.post(`/staff/cases/${caseId}/questions/${questionId}/answer/review`, {});
+      await loadCase();
+      setSuccess(t("Patient follow-up answer marked as reviewed."));
+    } catch (requestError: any) {
+      setError(t(requestError.response?.data?.message || "Unable to review this answer."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const sendApprovedQuestions = async () => {
     if (!caseId) return;
     setSaving(true);
@@ -903,7 +919,19 @@ function StaffCaseDetailPage() {
                                 </div>
                               )}
                             {answer && (
-                              <small>{t("Patient response:")} {answer.answer}</small>
+                              <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                                <small>{t("Patient response:")} {answer.answer}</small>
+                                {item.status === "ANSWERED" && (
+                                  <button
+                                    className="button button-secondary"
+                                    type="button"
+                                    onClick={() => void reviewFollowUpAnswer(item._id)}
+                                    disabled={saving}
+                                  >
+                                    {t("Mark answer reviewed")}
+                                  </button>
+                                )}
+                              </div>
                             )}
                             <time>
                               {new Date(item.createdAt).toLocaleString(
