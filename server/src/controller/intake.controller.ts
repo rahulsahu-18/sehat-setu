@@ -22,6 +22,7 @@ import { appendCaseAudit } from "../utils/caseAudit";
 import { isAllowedStatusTransition } from "../utils/caseWorkflow";
 import { patientOwnedCaseFilter } from "../utils/caseAccess";
 import { persistIntakeSummary } from "../utils/intakeConversation";
+import { getIntakeQuestionBudget, MAX_AI_INTAKE_QUESTIONS } from "../utils/intakeBudget";
 import { deleteCaseData } from "../utils/caseData";
 import { User, UserRole } from "../models/user.model";
 import type { AuthRequest } from "../middleware/auth.middleware";
@@ -366,6 +367,119 @@ export const addPatientIntakeInput = async (
             status: QuestionStatus.SENT,
           }).sort({ createdAt: 1 })
         : [];
+
+    // Doctor-authored follow-up turns have their own workflow and do not
+    // consume the initial AI intake question budget.
+    const intakeBudget = getIntakeQuestionBudget(history);
+    if (!pendingQuestions.length && intakeBudget.exhausted) {
+      const lastSummaryData = latestSummary?.data;
+      const patientReports = [
+        ...history
+          .filter((message) => message.role === "user")
+          .map((message) => message.content),
+        content.trim(),
+      ];
+      const safetyFlags = evaluateSafetyFlags(patientReports, caseRecord.intakeLanguage);
+      const finalMessage = safetyFlags[0]?.instruction ??
+        "Thank you. I have saved your information for a qualified healthcare professional to review. This assistant does not diagnose or prescribe.";
+      const previousStatus = caseRecord.status;
+      const previousPriority = caseRecord.priority;
+      const nextStatus = safetyFlags.length
+        ? CaseStatus.ESCALATED
+        : CaseStatus.WAITING_FOR_REVIEW;
+
+      if (!isAllowedStatusTransition(previousStatus, nextStatus)) {
+        return res.status(409).json({
+          success: false,
+          message: "This case cannot move to the next intake status",
+        });
+      }
+
+      // Persist the patient's final response even though no more AI questions
+      // may be asked. A later summary/provider failure must not discard it.
+      const input = await CaseInput.create({
+        caseId: caseRecord._id,
+        mode: inputMode,
+        content: content.trim(),
+        language: caseRecord.intakeLanguage,
+      });
+      await persistIntakeSummary(
+        caseRecord._id,
+        history,
+        content.trim(),
+        finalMessage,
+        {
+          summary: typeof lastSummaryData?.summary === "string" ? lastSummaryData.summary : "",
+          missingInformation: Array.isArray(lastSummaryData?.missingInformation)
+            ? lastSummaryData.missingInformation
+            : [],
+          contradictions: Array.isArray(lastSummaryData?.contradictions)
+            ? lastSummaryData.contradictions
+            : [],
+          timeline: Array.isArray(lastSummaryData?.timeline)
+            ? lastSummaryData.timeline
+            : [],
+          urgencySignals: Array.isArray(lastSummaryData?.urgencySignals)
+            ? lastSummaryData.urgencySignals
+            : [],
+          deterministicSafetyFlags: safetyFlags,
+          conversationSource: "server-generated-v1",
+          followUpQuestions: [],
+          complete: true,
+          questionBudget: {
+            used: MAX_AI_INTAKE_QUESTIONS,
+            maxQuestions: MAX_AI_INTAKE_QUESTIONS,
+            remaining: 0,
+          },
+        },
+      );
+
+      caseRecord.status = nextStatus;
+      if (safetyFlags.length) caseRecord.priority = CasePriority.URGENT;
+      await caseRecord.save();
+      await appendCaseAudit(caseRecord._id, {
+        action: "PATIENT_INTAKE_QUESTION_LIMIT_REACHED",
+        actorId: new Types.ObjectId(patientId),
+        timestamp: new Date(),
+        fromStatus: previousStatus,
+        toStatus: caseRecord.status,
+        fromPriority: previousPriority,
+        toPriority: caseRecord.priority,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Your response was saved and the intake is ready for clinical review.",
+        data: {
+          inputId: input._id,
+          caseNo: caseRecord.caseNo,
+          status: caseRecord.status,
+          priority: caseRecord.priority,
+          reply: finalMessage,
+          summary: typeof lastSummaryData?.summary === "string" ? lastSummaryData.summary : "",
+          missingInformation: Array.isArray(lastSummaryData?.missingInformation)
+            ? lastSummaryData.missingInformation
+            : [],
+          contradictions: Array.isArray(lastSummaryData?.contradictions)
+            ? lastSummaryData.contradictions
+            : [],
+          timeline: Array.isArray(lastSummaryData?.timeline) ? lastSummaryData.timeline : [],
+          urgencySignals: Array.isArray(lastSummaryData?.urgencySignals)
+            ? lastSummaryData.urgencySignals
+            : [],
+          deterministicSafetyFlags: safetyFlags,
+          followUpQuestions: [],
+          staffReviewPending: false,
+          complete: true,
+          questionBudget: {
+            used: MAX_AI_INTAKE_QUESTIONS,
+            maxQuestions: MAX_AI_INTAKE_QUESTIONS,
+            remaining: 0,
+          },
+        },
+      });
+    }
+
     if (pendingQuestions.length) {
       history.push(
         ...pendingQuestions.map((question) => ({
