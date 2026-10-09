@@ -9,6 +9,7 @@ const { User } = require("../dist/models/user.model.js");
 const { Question } = require("../dist/models/question.model.js");
 const { Decision } = require("../dist/models/decision.model.js");
 const { ReferralNote } = require("../dist/models/referralNote.model.js");
+const { Notification } = require("../dist/models/notification.model.js");
 
 const originals = new Map();
 const patched = [];
@@ -48,8 +49,18 @@ function staff(id, facilityId) {
 function queryResult(value) {
   return {
     populate() { return this; },
+    select() { return this; },
+    lean() { return Promise.resolve(value); },
+    exec() { return Promise.resolve(value); },
     then(resolve, reject) { return Promise.resolve(value).then(resolve, reject); },
   };
+}
+
+function stubPatientNotifications(patientId = "64b000000000000000000099") {
+  patch(Case, "findById", () => queryResult({ patientId: new Types.ObjectId(patientId) }));
+  patch(Notification, "findOneAndUpdate", () => ({
+    exec: async () => ({ acknowledged: true }),
+  }));
 }
 
 test("denies staff case details across facilities", async () => {
@@ -222,6 +233,7 @@ test("records a review without requiring internal assessment notes", async () =>
   let savedDecision;
   patch(User, "findById", () => ({ select: async () => staff(staffId, facilityId) }));
   patch(Case, "findOne", async () => caseRecord);
+  stubPatientNotifications();
   patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
   patch(Question, "updateMany", async () => ({ modifiedCount: 0 }));
   patch(Decision.prototype, "save", async function save() {
@@ -263,6 +275,7 @@ test("queues clinician-authored questions and sends the approved bundle", async 
   const queuedQuestions = [];
   patch(User, "findById", () => ({ select: async () => staffRecord }));
   patch(Case, "findOne", async () => caseRecord);
+  stubPatientNotifications();
   patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
   patch(Question, "findOne", async () => null);
   patch(Question, "insertMany", async (records) => {
@@ -325,6 +338,7 @@ test("moving a waiting case to final review cancels outstanding questions", asyn
   let questionUpdate;
   patch(User, "findById", () => ({ select: async () => staff(staffId, facilityId) }));
   patch(Case, "findOne", async () => caseRecord);
+  stubPatientNotifications();
   patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
   patch(Question, "updateMany", async (filter, update) => {
     questionUpdate = { filter, update };
