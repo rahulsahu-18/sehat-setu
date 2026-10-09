@@ -722,7 +722,7 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
   }
   const outstandingQuestion = await Question.findOne({
     caseId: caseRecord._id,
-    status: QuestionStatus.SENT,
+    status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
   });
   if (outstandingQuestion) {
     return res.status(409).json({
@@ -792,7 +792,7 @@ export const sendStaffQuestionBundle = async (
 
   const outstandingQuestion = await Question.findOne({
     caseId: caseRecord._id,
-    status: QuestionStatus.SENT,
+    status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
   });
   if (outstandingQuestion) {
     return res.status(409).json({
