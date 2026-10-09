@@ -9,6 +9,7 @@ import { patientOwnedCaseFilter } from "../utils/caseAccess";
 import { isAllowedStatusTransition } from "../utils/caseWorkflow";
 import { notifyCareTeamAnswer } from "../utils/notifications";
 import { createFollowUpRoomToken } from "../utils/livekitToken";
+import { isAllowedFollowUpTransition } from "../utils/followUpWorkflow";
 import { hashFollowUpAnswer, matchesIdempotentAnswer, validFollowUpIdempotencyKey } from "../utils/followUpIdempotency";
 
 const activeStatuses = [
@@ -43,7 +44,7 @@ async function finalizeSavedAnswer(
     {
       _id: questionId,
       caseId,
-      status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
+      status: QuestionStatus.IN_PROGRESS,
       submissionKey: idempotencyKey,
     },
     { $set: { status: QuestionStatus.ANSWERED } },
@@ -152,6 +153,9 @@ export async function createPatientFollowUpVoiceToken(req: AuthRequest, res: Res
   if (![QuestionStatus.SENT, QuestionStatus.IN_PROGRESS].includes(owned.question.status)) {
     return res.status(409).json({ success: false, message: "This follow-up is not accepting an answer" });
   }
+  if (!isAllowedFollowUpTransition(owned.question.status, QuestionStatus.IN_PROGRESS)) {
+    return res.status(409).json({ success: false, message: "This follow-up cannot enter a voice session from its current state" });
+  }
   try {
     // IN_PROGRESS means the patient has opened the live follow-up session.
     // The idempotency key remains unset until the answer is submitted.
@@ -196,6 +200,10 @@ export async function submitPatientFollowUpAnswer(req: AuthRequest, res: Respons
       });
     }
     return res.status(409).json({ success: false, message: "An answer was already submitted for this question. Ask the care team to create a new follow-up if more information is needed." });
+  }
+
+  if (!isAllowedFollowUpTransition(owned.question.status, QuestionStatus.IN_PROGRESS)) {
+    return res.status(409).json({ success: false, message: "This follow-up cannot accept an answer from its current state" });
   }
 
   // Compare-and-set locks a question to one idempotency key. If a worker
