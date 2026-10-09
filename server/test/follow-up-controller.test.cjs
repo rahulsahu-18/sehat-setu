@@ -9,6 +9,8 @@ const { Notification } = require("../dist/models/notification.model.js");
 
 const originals = new Map();
 const patched = [];
+const originalFetch = global.fetch;
+const originalOpenAIKey = process.env.OPENAI_API_KEY;
 
 function patch(target, name, implementation) {
   if (!originals.has(target)) originals.set(target, new Map());
@@ -43,6 +45,9 @@ afterEach(() => {
     target[name] = originals.get(target).get(name);
   }
   originals.clear();
+  global.fetch = originalFetch;
+  if (originalOpenAIKey === undefined) delete process.env.OPENAI_API_KEY;
+  else process.env.OPENAI_API_KEY = originalOpenAIKey;
 });
 
 test("stores and replays each doctor follow-up answer independently", async () => {
@@ -220,4 +225,116 @@ test("denies a patient access to another patient's follow-up answer", async () =
   assert.equal(res.statusCode, 404);
   assert.equal(answerReads, 0);
   assert.equal(answerWrites, 0);
+});
+
+test("saves the original Odia voice transcript and a separate English doctor summary", async () => {
+  process.env.OPENAI_API_KEY = "synthetic-summary-test-key";
+  const patientId = "64b000000000000000000041";
+  const caseId = new Types.ObjectId("64b000000000000000000071");
+  const questionId = new Types.ObjectId("64b000000000000000000072");
+  const originalAnswer = "ଗତକାଲିଠାରୁ କାଶ ହେଉଛି।";
+  const question = {
+    _id: questionId,
+    caseId,
+    question: "ଆପଣଙ୍କୁ କାଶ କେବେ ଆରମ୍ଭ ହେଲା?",
+    source: "STAFF",
+    status: QuestionStatus.SENT,
+    submissionKey: undefined,
+    submissionStartedAt: undefined,
+  };
+  const caseRecord = {
+    _id: caseId,
+    patientId: new Types.ObjectId(patientId),
+    facilityId: new Types.ObjectId("64b000000000000000000042"),
+    assignedStaffId: new Types.ObjectId("64b000000000000000000043"),
+    intakeLanguage: "english",
+    status: CaseStatus.WAITING_FOR_PATIENT,
+    async save() {},
+  };
+  let savedAnswer;
+  let summaryRequest;
+  const notifications = new Map();
+
+  global.fetch = async (_url, options) => {
+    summaryRequest = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            summary: "The patient reports having a cough since yesterday.",
+          }),
+        },
+      }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  patch(Question, "findById", () => query(question));
+  patch(Question, "findOneAndUpdate", async (filter, update) => {
+    if (String(filter._id) !== String(questionId) || String(filter.caseId) !== String(caseId)) return null;
+    if (filter.status?.$in) {
+      if (!filter.status.$in.includes(question.status)) return null;
+      const hasKey = typeof question.submissionKey === "string";
+      const leaseExpired = question.submissionStartedAt instanceof Date &&
+        question.submissionStartedAt < (filter.$or?.[1]?.submissionStartedAt?.$lt || new Date(0));
+      if (hasKey && !leaseExpired) return null;
+    } else if (filter.status === QuestionStatus.IN_PROGRESS) {
+      if (question.status !== QuestionStatus.IN_PROGRESS || question.submissionKey !== filter.submissionKey) return null;
+    }
+    Object.assign(question, update.$set || {});
+    return question;
+  });
+  patch(Question, "countDocuments", async (filter) =>
+    filter.status.$in.includes(question.status) && String(filter.caseId) === String(caseId) ? 1 : 0,
+  );
+  patch(Case, "findOne", async (filter) =>
+    String(filter._id) === String(caseId) && String(filter.patientId) === patientId ? caseRecord : null,
+  );
+  patch(Case, "findById", () => query(caseRecord));
+  patch(Case, "findOneAndUpdate", async (filter, update) => {
+    if (String(filter._id) !== String(caseId) || caseRecord.status !== filter.status) return null;
+    Object.assign(caseRecord, update.$set || {});
+    return caseRecord;
+  });
+  patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
+  patch(Answer, "findOne", () => query(savedAnswer || null));
+  patch(Answer, "create", async (record) => {
+    savedAnswer = { ...record, _id: new Types.ObjectId(), createdAt: new Date() };
+    return savedAnswer;
+  });
+  patch(Answer, "updateOne", async (filter, update) => {
+    assert.equal(String(filter._id), String(savedAnswer._id));
+    Object.assign(savedAnswer, update.$set || {});
+    return { modifiedCount: 1 };
+  });
+  patch(Notification, "findOneAndUpdate", (filter, update) => ({
+    exec: async () => {
+      const key = filter.dedupeKey;
+      if (!notifications.has(key)) notifications.set(key, update.$setOnInsert);
+      return notifications.get(key);
+    },
+  }));
+
+  const res = responseRecorder();
+  await followUps.submitPatientFollowUpAnswer(
+    {
+      user: { userId: patientId, role: "PATIENT" },
+      params: { questionId: String(questionId) },
+      body: { answer: originalAnswer, mode: "VOICE" },
+      header: (name) => name.toLowerCase() === "idempotency-key" ? "odia-follow-up-answer-key-001" : undefined,
+    },
+    res,
+  );
+
+  assert.equal(res.statusCode, 201, res.body?.message);
+  assert.equal(savedAnswer.answer, originalAnswer);
+  assert.equal(savedAnswer.language, "odia");
+  assert.equal(savedAnswer.englishSummary, "The patient reports having a cough since yesterday.");
+  assert.equal(savedAnswer.englishSummaryStatus, "READY");
+  assert.equal(res.body.data.answer, originalAnswer);
+  assert.equal(res.body.data.language, "odia");
+  assert.equal(res.body.data.englishSummary, "The patient reports having a cough since yesterday.");
+  const prompt = JSON.parse(summaryRequest.messages[1].content);
+  assert.equal(prompt.patientAnswerLanguage, "odia");
+  assert.equal(prompt.originalPatientAnswer, originalAnswer);
+  assert.match(summaryRequest.messages[0].content, /only in clear, concise English/i);
+  assert.equal(question.status, QuestionStatus.ANSWERED);
 });
