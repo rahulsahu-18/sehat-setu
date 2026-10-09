@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { Types } from "mongoose";
 import { Case } from "../models/case.model";
 import { Question, QuestionStatus } from "../models/question.model";
+import { detectFollowUpLanguage } from "../utils/followUpLanguage";
 
 function equalSecret(provided: string, expected: string) {
   const left = Buffer.from(provided);
@@ -31,7 +32,7 @@ export async function getVoiceAgentFollowUp(req: Request, res: Response) {
     data: {
       questionId: question._id,
       question: question.question,
-      language: caseRecord.intakeLanguage,
+      language: detectFollowUpLanguage(question.question, caseRecord.intakeLanguage),
       status: question.status,
     },
   });
