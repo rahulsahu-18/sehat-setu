@@ -41,6 +41,9 @@ if (process.env.NODE_ENV === "production") {
     "CLINICAL_SAFETY_POLICY_APPROVED_BY",
     "CLINICAL_SAFETY_POLICY_APPROVED_AT",
     "CLINICAL_SAFETY_POLICY_REVIEW_RECORD",
+    "CLINICAL_SAFETY_MESSAGE_ENGLISH",
+    "CLINICAL_SAFETY_MESSAGE_HINDI",
+    "CLINICAL_SAFETY_MESSAGE_ODIA",
   ] as const;
   if (
     process.env.CLINICAL_SAFETY_POLICY_STATUS !== "approved" ||
@@ -113,6 +116,7 @@ app.get("/health", (_req, res) => {
     status: databaseReady ? "ok" : "unavailable",
     database: databaseReady ? "connected" : "disconnected",
     aiIntakeConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    liveKitConfigured: Boolean(process.env.LIVEKIT_URL?.trim() && process.env.LIVEKIT_API_KEY?.trim() && process.env.LIVEKIT_API_SECRET?.trim()),
   });
 });
 
