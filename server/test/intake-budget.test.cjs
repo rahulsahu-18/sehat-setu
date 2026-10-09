@@ -21,6 +21,18 @@ test("counts distinct assistant questions only", () => {
   });
 });
 
+test("counts a repeated question again after a different patient answer", () => {
+  const conversation = [
+    { role: "user", content: "I have a fever" },
+    { role: "assistant", content: "When did it start?" },
+    { role: "user", content: "Yesterday" },
+    { role: "assistant", content: "What is your temperature?" },
+    { role: "user", content: "I have not measured it" },
+    { role: "assistant", content: "When did it start?" },
+  ];
+  assert.equal(getIntakeQuestionBudget(conversation).used, 3);
+});
+
 test("stops at the configured ten-question maximum", () => {
   const conversation = Array.from({ length: 12 }, (_, index) => ({
     role: "assistant",
