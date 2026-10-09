@@ -22,6 +22,7 @@ export interface IQuestion extends Document {
   source: QuestionSource;
   status: QuestionStatus;
   submissionKey?: string;
+  submissionStartedAt?: Date;
   language?: string;
   createdBy?: Types.ObjectId;
   reviewedBy?: Types.ObjectId;
@@ -55,6 +56,7 @@ const questionSchema = new Schema<IQuestion>(
       default: QuestionStatus.PENDING,
     },
     submissionKey: { type: String, trim: true, maxlength: 128 },
+    submissionStartedAt: { type: Date },
     language: { type: String, enum: ["english", "hindi", "odia"] },
 
     createdBy: {
