@@ -153,6 +153,12 @@ export async function createPatientFollowUpVoiceToken(req: AuthRequest, res: Res
     return res.status(409).json({ success: false, message: "This follow-up is not accepting an answer" });
   }
   try {
+    // IN_PROGRESS means the patient has opened the live follow-up session.
+    // The idempotency key remains unset until the answer is submitted.
+    await Question.updateOne(
+      { _id: owned.question._id, caseId: owned.caseRecord._id, status: QuestionStatus.SENT },
+      { $set: { status: QuestionStatus.IN_PROGRESS } },
+    );
     const data = createFollowUpRoomToken({ userId: patientId, questionId, language: owned.caseRecord.intakeLanguage });
     return res.status(200).json({ success: true, data });
   } catch (error) {
@@ -195,7 +201,12 @@ export async function submitPatientFollowUpAnswer(req: AuthRequest, res: Respons
   // Compare-and-set locks a question to one idempotency key. Only retries with
   // that exact key may resume an IN_PROGRESS submission.
   let question = await Question.findOneAndUpdate(
-    { _id: owned.question._id, caseId: owned.caseRecord._id, status: QuestionStatus.SENT },
+    {
+      _id: owned.question._id,
+      caseId: owned.caseRecord._id,
+      status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
+      submissionKey: { $exists: false },
+    },
     { $set: { status: QuestionStatus.IN_PROGRESS, submissionKey: rawKey } },
     { new: true },
   );
