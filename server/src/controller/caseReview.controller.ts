@@ -25,6 +25,7 @@ import {
   statusForDecision,
 } from "../utils/caseWorkflow";
 import { facilityCaseFilter } from "../utils/caseAccess";
+import { notifyPatientFollowUp } from "../utils/notifications";
 
 type StaffActor = {
   _id: Types.ObjectId;
@@ -731,6 +732,7 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
       question,
       source: QuestionSource.STAFF,
       status: QuestionStatus.APPROVED,
+      language: caseRecord.intakeLanguage,
       createdBy: staff._id,
       reviewedBy: staff._id,
     })),
@@ -831,6 +833,9 @@ export const sendStaffQuestionBundle = async (
     fromStatus: previousStatus,
     toStatus: caseRecord.status,
   });
+  await Promise.all(approvedQuestions.map((question) =>
+    notifyPatientFollowUp(caseRecord._id, question._id, staff._id),
+  ));
   return res.status(200).json({
     success: true,
     data: { sentCount: approvedQuestions.length, status: caseRecord.status },
@@ -976,4 +981,40 @@ export const reviewStaffCase = async (req: AuthRequest, res: Response) => {
       priority: caseRecord.priority,
     },
   });
+};
+
+
+export const reviewStaffFollowUpAnswer = async (req: AuthRequest, res: Response) => {
+  const staff = await getCurrentStaff(req.user?.userId);
+  const { caseId, questionId } = req.params;
+  if (!staff) return res.status(403).json({ success: false, message: "Staff access required" });
+  if (!validCaseId(caseId) || !validCaseId(questionId)) return res.status(400).json({ success: false, message: "Invalid follow-up reference" });
+
+  const caseFilter = facilityCaseFilter(caseId, String(staff.facilityId));
+  if (!caseFilter) return res.status(400).json({ success: false, message: "Invalid case reference" });
+  const caseRecord = await Case.findOne(caseFilter);
+  if (!caseRecord) return res.status(404).json({ success: false, message: "Case not found" });
+  if (caseRecord.assignedStaffId && idString(caseRecord.assignedStaffId) !== String(staff._id)) {
+    return res.status(403).json({ success: false, message: "Only the assigned clinician can review this answer" });
+  }
+
+  const question = await Question.findOne({
+    _id: questionId,
+    caseId: caseRecord._id,
+    status: QuestionStatus.ANSWERED,
+  });
+  if (!question) {
+    const existing = await Question.findOne({ _id: questionId, caseId: caseRecord._id, status: QuestionStatus.REVIEWED });
+    if (existing) return res.status(200).json({ success: true, data: { status: existing.status, replayed: true } });
+    return res.status(404).json({ success: false, message: "Submitted follow-up answer not found" });
+  }
+  question.status = QuestionStatus.REVIEWED;
+  question.reviewedBy = staff._id;
+  await question.save();
+  await appendCaseAudit(caseRecord._id, {
+    action: "STAFF_REVIEWED_FOLLOW_UP_ANSWER",
+    actorId: staff._id,
+    timestamp: new Date(),
+  });
+  return res.status(200).json({ success: true, data: { status: question.status } });
 };
