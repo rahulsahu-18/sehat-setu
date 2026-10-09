@@ -34,7 +34,8 @@ test("creates a short-lived scoped LiveKit token and explicit agent dispatch", (
   assert.equal(result.url, process.env.LIVEKIT_URL);
   assert.equal(claims.iss, "synthetic-key");
   assert.equal(claims.video.roomJoin, true);
-  assert.equal(claims.video.room, "ss-followup-64b000000000000000000001");
+  assert.match(claims.video.room, /^ss-followup-64b000000000000000000001-[a-f0-9]{16}$/);
+  assert.equal(result.roomName, claims.video.room);
   assert.deepEqual(claims.video.canPublishSources, ["microphone"]);
   assert.equal(claims.video.canPublishData, false);
   assert.ok(claims.exp - claims.nbf <= 305);
@@ -68,4 +69,33 @@ test("requires secure WebSocket transport in production", () => {
     questionId: "question",
     language: "english",
   }), /wss:\/\//);
+});
+
+test("dispatches each voice retry to a fresh room while preserving question metadata", () => {
+  process.env.LIVEKIT_URL = "wss://voice.example.test";
+  process.env.LIVEKIT_API_KEY = "synthetic-key";
+  process.env.LIVEKIT_API_SECRET = "synthetic-secret-which-is-only-for-tests";
+  process.env.LIVEKIT_AGENT_NAME = "test-followup-agent";
+  process.env.NODE_ENV = "test";
+
+  const input = {
+    userId: "64b000000000000000000002",
+    questionId: "64b000000000000000000001",
+    language: "english",
+    now: 1_800_000_000_000,
+  };
+  const first = createFollowUpRoomToken(input);
+  const retry = createFollowUpRoomToken(input);
+  const firstClaims = jwt.verify(first.token, process.env.LIVEKIT_API_SECRET, {
+    clockTimestamp: Math.floor(input.now / 1000),
+  });
+  const retryClaims = jwt.verify(retry.token, process.env.LIVEKIT_API_SECRET, {
+    clockTimestamp: Math.floor(input.now / 1000),
+  });
+
+  assert.notEqual(first.roomName, retry.roomName);
+  assert.equal(first.roomName, firstClaims.video.room);
+  assert.equal(retry.roomName, retryClaims.video.room);
+  assert.equal(JSON.parse(firstClaims.roomConfig.agents[0].metadata).questionId, input.questionId);
+  assert.equal(JSON.parse(retryClaims.roomConfig.agents[0].metadata).questionId, input.questionId);
 });
