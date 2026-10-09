@@ -43,3 +43,21 @@ export function getIntakeQuestionBudget(
     overLimit: rawCount > maxQuestions,
   };
 }
+
+function normalizeQuestionText(value: string) {
+  return value.toLocaleLowerCase().replace(/[?.!,،؟？]+/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** Excludes exact staff-authored questions from the initial AI intake budget. */
+export function excludeStaffAuthoredQuestions<T extends { role: string; content: string }>(
+  conversation: T[],
+  staffQuestions: string[],
+): T[] {
+  const normalizedStaffQuestions = new Set(staffQuestions.map(normalizeQuestionText));
+  if (normalizedStaffQuestions.size === 0) return conversation;
+  return conversation.filter(
+    (turn) =>
+      turn.role !== "assistant" ||
+      !normalizedStaffQuestions.has(normalizeQuestionText(turn.content)),
+  );
+}
