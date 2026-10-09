@@ -500,12 +500,11 @@ export const addPatientIntakeInput = async (
     }
 
     if (pendingQuestions.length) {
-      history.push(
-        ...pendingQuestions.map((question) => ({
-          role: "assistant" as const,
-          content: question.question,
-        })),
-      );
+      return res.status(409).json({
+        success: false,
+        message: "Please answer each care-team follow-up separately from the Follow-ups page.",
+        data: { followUpsPath: "/patient/follow-ups" },
+      });
     }
     const conversationForAI = [
       ...history,
@@ -590,20 +589,6 @@ export const addPatientIntakeInput = async (
       content: content.trim(),
       language: caseRecord.intakeLanguage,
     });
-    if (pendingQuestions.length) {
-      for (const pendingQuestion of pendingQuestions) {
-        await Answer.create({
-          questionId: pendingQuestion._id,
-          answer: content.trim(),
-          mode:
-            inputMode === InputMode.VOICE
-              ? AnswerMode.VOICE
-              : AnswerMode.TEXT,
-        });
-        pendingQuestion.status = QuestionStatus.ANSWERED;
-        await pendingQuestion.save();
-      }
-    }
     await persistIntakeSummary(
       caseRecord._id,
       history,
