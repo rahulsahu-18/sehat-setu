@@ -164,7 +164,7 @@ export async function listPatientFollowUps(req: AuthRequest, res: Response) {
     source: { $in: [QuestionSource.STAFF, QuestionSource.AI] },
   }).sort({ updatedAt: -1 }).limit(100).lean();
   const answers = await Answer.find({ questionId: { $in: questions.map((item) => item._id) } })
-    .select("questionId answer mode createdAt").lean();
+    .select("questionId answer mode language englishSummary englishSummaryStatus createdAt").lean();
   const answerMap = new Map(answers.map((item) => [item.questionId.toString(), item]));
   return res.status(200).json({
     success: true,
@@ -175,13 +175,13 @@ export async function listPatientFollowUps(req: AuthRequest, res: Response) {
         id: question._id,
         caseId: question.caseId,
         caseNo: caseData?.caseNo ?? "Care case",
-        language: caseData?.intakeLanguage ?? "english",
+        language: detectFollowUpLanguage(question.question, caseData?.intakeLanguage),
         caseStatus: caseData?.status,
         question: question.question,
         source: question.source,
         status: question.status,
         createdAt: question.createdAt,
-        answer: answer ? { answer: answer.answer, mode: answer.mode, createdAt: answer.createdAt } : null,
+        answer: answer ? { answer: answer.answer, mode: answer.mode, language: answer.language ?? detectFollowUpLanguage(question.question, caseData?.intakeLanguage), englishSummary: answer.englishSummary, englishSummaryStatus: answer.englishSummaryStatus ?? "PENDING", createdAt: answer.createdAt } : null,
       };
     }),
   });
@@ -193,19 +193,19 @@ export async function getPatientFollowUp(req: AuthRequest, res: Response) {
   if (!patientId || !validId(questionId)) return res.status(400).json({ success: false, message: "Invalid follow-up reference" });
   const owned = await getOwnedFollowUp(questionId, patientId);
   if (!owned) return res.status(404).json({ success: false, message: "Follow-up not found" });
-  const answer = await Answer.findOne({ questionId: owned.question._id }).select("answer mode createdAt").lean();
+  const answer = await Answer.findOne({ questionId: owned.question._id }).select("answer mode language englishSummary englishSummaryStatus createdAt").lean();
   return res.status(200).json({
     success: true,
     data: {
       id: owned.question._id,
       caseId: owned.caseRecord._id,
       caseNo: owned.caseRecord.caseNo,
-      language: owned.caseRecord.intakeLanguage,
+      language: detectFollowUpLanguage(owned.question.question, owned.caseRecord.intakeLanguage),
       question: owned.question.question,
       source: owned.question.source,
       status: owned.question.status,
       createdAt: owned.question.createdAt,
-      answer: answer ? { answer: answer.answer, mode: answer.mode, createdAt: answer.createdAt } : null,
+      answer: answer ? { answer: answer.answer, mode: answer.mode, language: answer.language ?? detectFollowUpLanguage(owned.question.question, owned.caseRecord.intakeLanguage), englishSummary: answer.englishSummary, englishSummaryStatus: answer.englishSummaryStatus ?? "PENDING", createdAt: answer.createdAt } : null,
     },
   });
 }
@@ -229,7 +229,7 @@ export async function createPatientFollowUpVoiceToken(req: AuthRequest, res: Res
       { _id: owned.question._id, caseId: owned.caseRecord._id, status: QuestionStatus.SENT },
       { $set: { status: QuestionStatus.IN_PROGRESS } },
     );
-    const data = createFollowUpRoomToken({ userId: patientId, questionId, language: owned.caseRecord.intakeLanguage });
+    const data = createFollowUpRoomToken({ userId: patientId, questionId, language: detectFollowUpLanguage(owned.question.question, owned.caseRecord.intakeLanguage) });
     return res.status(200).json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -255,14 +255,29 @@ export async function submitPatientFollowUpAnswer(req: AuthRequest, res: Respons
   if (!owned) return res.status(404).json({ success: false, message: "Follow-up not found" });
   const payloadHash = hashFollowUpAnswer(answerText, mode);
   const existingAnswer = await Answer.findOne({ questionId: owned.question._id }).lean();
+  const answerLanguage = detectFollowUpLanguage(owned.question.question, owned.caseRecord.intakeLanguage);
   if (existingAnswer) {
     if (matchesIdempotentAnswer(existingAnswer, rawKey, payloadHash)) {
+      const summary = await ensureEnglishFollowUpSummary(
+        existingAnswer,
+        owned.question.question,
+        answerLanguage,
+      );
       await finalizeSavedAnswer(owned.question._id, owned.caseRecord._id, new Types.ObjectId(patientId), rawKey);
       const refreshed = await Question.findById(owned.question._id).select("status").lean();
       return res.status(200).json({
         success: true,
         replayed: true,
-        data: { questionId, status: refreshed?.status ?? QuestionStatus.ANSWERED, answer: existingAnswer.answer, mode: existingAnswer.mode, createdAt: existingAnswer.createdAt },
+        data: {
+          questionId,
+          status: refreshed?.status ?? QuestionStatus.ANSWERED,
+          answer: existingAnswer.answer,
+          mode: existingAnswer.mode,
+          language: summary.language,
+          englishSummary: summary.englishSummary,
+          englishSummaryStatus: summary.englishSummaryStatus,
+          createdAt: existingAnswer.createdAt,
+        },
       });
     }
     return res.status(409).json({ success: false, message: "An answer was already submitted for this question. Ask the care team to create a new follow-up if more information is needed." });
@@ -310,24 +325,58 @@ export async function submitPatientFollowUpAnswer(req: AuthRequest, res: Respons
       questionId: question._id,
       answer: answerText,
       mode,
+      language: answerLanguage,
+      englishSummaryStatus: "PENDING",
       idempotencyKey: rawKey,
       payloadHash,
       submittedById: new Types.ObjectId(patientId),
     });
+    const summary = await ensureEnglishFollowUpSummary(
+      answer,
+      owned.question.question,
+      answerLanguage,
+    );
     await finalizeSavedAnswer(question._id, owned.caseRecord._id, new Types.ObjectId(patientId), rawKey);
     const refreshed = await Question.findById(question._id).select("status").lean();
     return res.status(201).json({
       success: true,
       replayed: false,
-      data: { questionId, status: refreshed?.status ?? QuestionStatus.ANSWERED, answer: answer.answer, mode: answer.mode, createdAt: answer.createdAt },
+      data: {
+        questionId,
+        status: refreshed?.status ?? QuestionStatus.ANSWERED,
+        answer: answer.answer,
+        mode: answer.mode,
+        language: summary.language,
+        englishSummary: summary.englishSummary,
+        englishSummaryStatus: summary.englishSummaryStatus,
+        createdAt: answer.createdAt,
+      },
     });
   } catch (error) {
     const duplicateKey = !!error && typeof error === "object" && "code" in error && (error as { code?: number }).code === 11000;
     if (duplicateKey) {
       const saved = await Answer.findOne({ questionId: owned.question._id }).lean();
       if (saved && matchesIdempotentAnswer(saved, rawKey, payloadHash)) {
+        const summary = await ensureEnglishFollowUpSummary(
+          saved,
+          owned.question.question,
+          answerLanguage,
+        );
         await finalizeSavedAnswer(question._id, owned.caseRecord._id, new Types.ObjectId(patientId), rawKey);
-        return res.status(200).json({ success: true, replayed: true, data: { questionId, status: QuestionStatus.ANSWERED, answer: saved.answer, mode: saved.mode, createdAt: saved.createdAt } });
+        return res.status(200).json({
+          success: true,
+          replayed: true,
+          data: {
+            questionId,
+            status: QuestionStatus.ANSWERED,
+            answer: saved.answer,
+            mode: saved.mode,
+            language: summary.language,
+            englishSummary: summary.englishSummary,
+            englishSummaryStatus: summary.englishSummaryStatus,
+            createdAt: saved.createdAt,
+          },
+        });
       }
       return res.status(409).json({ success: false, message: "A response for this follow-up is already saved." });
     }
