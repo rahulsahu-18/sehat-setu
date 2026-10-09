@@ -20,7 +20,7 @@ function queryResult(value) {
     sort() { return this; },
     limit(value) { this.limitValue = value; return this; },
     select() { return this; },
-    lean() { return Promise.resolve(value); },
+    lean() { return this; },
     exec() { return Promise.resolve(value); },
     then(resolve, reject) { return Promise.resolve(value).then(resolve, reject); },
   };
