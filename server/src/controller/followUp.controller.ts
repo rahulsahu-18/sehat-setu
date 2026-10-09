@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { Response } from "express";
 import { Types } from "mongoose";
 import type { AuthRequest } from "../middleware/auth.middleware";
@@ -10,6 +9,7 @@ import { patientOwnedCaseFilter } from "../utils/caseAccess";
 import { isAllowedStatusTransition } from "../utils/caseWorkflow";
 import { notifyCareTeamAnswer } from "../utils/notifications";
 import { createFollowUpRoomToken } from "../utils/livekitToken";
+import { hashFollowUpAnswer, matchesIdempotentAnswer, validFollowUpIdempotencyKey } from "../utils/followUpIdempotency";
 
 const activeStatuses = [
   QuestionStatus.SENT,
@@ -83,14 +83,6 @@ async function finalizeSavedAnswer(
   // Upsert makes notification repair safe after a crash between answer storage
   // and the notification write.
   await notifyCareTeamAnswer(caseId, questionId, patientId);
-}
-
-function answerPayloadHash(answer: string, mode: AnswerMode) {
-  return createHash("sha256").update(JSON.stringify({ answer, mode })).digest("hex");
-}
-
-function validIdempotencyKey(value: string | undefined): value is string {
-  return Boolean(value && value.length >= 16 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/.test(value));
 }
 
 export async function listPatientFollowUps(req: AuthRequest, res: Response) {
@@ -180,15 +172,15 @@ export async function submitPatientFollowUpAnswer(req: AuthRequest, res: Respons
   const requestedMode = req.body?.mode;
   const mode = requestedMode === AnswerMode.VOICE ? AnswerMode.VOICE : requestedMode === AnswerMode.TEXT || requestedMode === undefined ? AnswerMode.TEXT : null;
   if (!patientId || !validId(questionId)) return res.status(400).json({ success: false, message: "Invalid follow-up reference" });
-  if (!validIdempotencyKey(rawKey)) return res.status(400).json({ success: false, message: "A stable Idempotency-Key is required to submit an answer" });
+  if (!validFollowUpIdempotencyKey(rawKey)) return res.status(400).json({ success: false, message: "A stable Idempotency-Key is required to submit an answer" });
   if (!mode || !answerText || answerText.length > 4000) return res.status(400).json({ success: false, message: "Provide an answer under 4,000 characters and select a valid answer mode" });
 
   const owned = await getOwnedFollowUp(questionId, patientId);
   if (!owned) return res.status(404).json({ success: false, message: "Follow-up not found" });
-  const payloadHash = answerPayloadHash(answerText, mode);
+  const payloadHash = hashFollowUpAnswer(answerText, mode);
   const existingAnswer = await Answer.findOne({ questionId: owned.question._id }).lean();
   if (existingAnswer) {
-    if (existingAnswer.idempotencyKey === rawKey && existingAnswer.payloadHash === payloadHash) {
+    if (matchesIdempotentAnswer(existingAnswer, rawKey, payloadHash)) {
       await finalizeSavedAnswer(owned.question._id, owned.caseRecord._id, new Types.ObjectId(patientId), rawKey);
       const refreshed = await Question.findById(owned.question._id).select("status").lean();
       return res.status(200).json({
@@ -237,7 +229,7 @@ export async function submitPatientFollowUpAnswer(req: AuthRequest, res: Respons
     const duplicateKey = !!error && typeof error === "object" && "code" in error && (error as { code?: number }).code === 11000;
     if (duplicateKey) {
       const saved = await Answer.findOne({ questionId: owned.question._id }).lean();
-      if (saved?.idempotencyKey === rawKey && saved.payloadHash === payloadHash) {
+      if (saved && matchesIdempotentAnswer(saved, rawKey, payloadHash)) {
         await finalizeSavedAnswer(question._id, owned.caseRecord._id, new Types.ObjectId(patientId), rawKey);
         return res.status(200).json({ success: true, replayed: true, data: { questionId, status: QuestionStatus.ANSWERED, answer: saved.answer, mode: saved.mode, createdAt: saved.createdAt } });
       }
