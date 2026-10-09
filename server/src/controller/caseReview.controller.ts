@@ -26,6 +26,7 @@ import {
 } from "../utils/caseWorkflow";
 import { facilityCaseFilter } from "../utils/caseAccess";
 import { notifyPatientFollowUp, notifyPatientCaseReview } from "../utils/notifications";
+import { isAllowedFollowUpTransition } from "../utils/followUpWorkflow";
 
 type StaffActor = {
   _id: Types.ObjectId;
@@ -637,8 +638,12 @@ export const reviewStaffQuestion = async (req: AuthRequest, res: Response) => {
       .status(404)
       .json({ success: false, message: "Pending AI question not found" });
   }
-  question.status =
+  const nextQuestionStatus =
     decision === "APPROVE" ? QuestionStatus.APPROVED : QuestionStatus.REJECTED;
+  if (!isAllowedFollowUpTransition(question.status, nextQuestionStatus)) {
+    return res.status(409).json({ success: false, message: "Invalid follow-up question state transition" });
+  }
+  question.status = nextQuestionStatus;
   question.reviewedBy = staff._id;
   await question.save();
   await appendCaseAudit(caseRecord._id, {
@@ -820,6 +825,9 @@ export const sendStaffQuestionBundle = async (
 
   const previousStatus = caseRecord.status;
   for (const question of approvedQuestions) {
+    if (!isAllowedFollowUpTransition(question.status, QuestionStatus.SENT)) {
+      return res.status(409).json({ success: false, message: "A follow-up question is not in a sendable state" });
+    }
     question.status = QuestionStatus.SENT;
     question.reviewedBy = staff._id;
     await question.save();
@@ -1014,6 +1022,9 @@ export const reviewStaffFollowUpAnswer = async (req: AuthRequest, res: Response)
     const existing = await Question.findOne({ _id: questionId, caseId: caseRecord._id, status: QuestionStatus.REVIEWED });
     if (existing) return res.status(200).json({ success: true, data: { status: existing.status, replayed: true } });
     return res.status(404).json({ success: false, message: "Submitted follow-up answer not found" });
+  }
+  if (!isAllowedFollowUpTransition(question.status, QuestionStatus.REVIEWED)) {
+    return res.status(409).json({ success: false, message: "Invalid follow-up answer review transition" });
   }
   question.status = QuestionStatus.REVIEWED;
   question.reviewedBy = staff._id;
