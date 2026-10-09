@@ -15,10 +15,11 @@ The current application is a React/Vite client and Express/TypeScript server bac
 - The deterministic warning rules are prototype-only and are not clinically validated. They are not a medical emergency classifier and must not be represented as one.
 - This is an educational prototype using synthetic data. It has not undergone a clinical validation, privacy impact, penetration-test, or regulatory compliance assessment.
 
-## Added helper utilities
+## Changes on `ai-healthcare-gap-fixes`
 
-- `intakeBudget.ts` provides a backend-side question-budget utility with duplicate question text counted once.
-- `clinicalText.ts` provides bounded input normalization and a same-turn retry comparison helper.
-- `intake-budget.test.cjs` exercises these helpers using synthetic test content.
+- `intakeBudget.ts` counts assistant turns that contain a question mark, capped at ten. Its fingerprint includes the preceding patient response so an identical answer/question pair is counted once, while repeated wording after a different answer counts again.
+- The patient intake controller now checks the budget before requesting another AI response. After ten distinct question turns, it saves the latest patient response, preserves the prior summary fields and conversation, records an audit event, and moves the case to clinician review (or escalation if the existing warning rules flag the response). The initial intake question budget does not count doctor-authored follow-up requests.
+- `clinicalText.ts` provides bounded input normalization and a same-turn retry comparison helper. These helpers are not a complete request-idempotency implementation and are not currently wired into every mutation endpoint.
+- `intake-budget.test.cjs` exercises the question-budget utility and text helpers with synthetic data.
 
-These utilities are deliberately additive. They are not yet wired into the production intake controller; do not assume the question-limit or retry-protection requirement is fully implemented until that integration is completed and verified.
+The backend cap is implemented, but its verification is still pending because repository dependencies could not be installed in this execution environment. The counter relies on persisted conversation text rather than immutable question-turn IDs; concurrent duplicate submissions should be covered by a future end-to-end idempotency pass.
