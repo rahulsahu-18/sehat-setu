@@ -31,20 +31,27 @@ Follow-up questions are tracked independently by question ID. Each patient respo
 
 Persistent in-app notifications are exposed under `GET /api/v1/notifications` and `PATCH /api/v1/notifications/:notificationId/read`. Notification preview text is intentionally generic and should not contain symptoms or other clinical details.
 
-### LiveKit setup (optional for local text development)
+### LiveKit follow-up voice (text remains available as fallback)
 
-1. Create a LiveKit project and keep its API secret on the server/worker only.
-2. Add `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, and `LIVEKIT_AGENT_NAME` to `server/.env`.
-3. Create a long random `VOICE_AGENT_SECRET` and set the exact same value in `server/.env` and `voice-agent/.env`.
-4. Copy `voice-agent/.env.example` to `voice-agent/.env`, configure `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_TRANSCRIPTION_MODEL`. Set `VOICE_AGENT_API_BASE_URL=http://localhost:5000` for local development.
-5. Install the new browser SDK with `pnpm --dir client install`; this also refreshes the client lockfile after the dependency change. Install/start the agent in a separate terminal:
+1. Create a LiveKit project.
+2. Add `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_AGENT_NAME=sehatsetu-followup-agent`, and a long random `VOICE_AGENT_SECRET` to `server/.env`.
+3. Copy `voice-agent/.env.example` to `voice-agent/.env`. Set the same `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_AGENT_NAME`, and exact same `VOICE_AGENT_SECRET` as the server, then configure `VOICE_AGENT_API_BASE_URL` so the worker can reach the Express server. For local development where both processes run on the same host, use `http://localhost:5000`.
+4. Set `OPENAI_API_KEY` on the server and voice worker. OpenAI supplies the LLM used by the voice agent and English speech services.
+5. For Hindi/Odia voice sessions, also set `SARVAM_API_KEY` in `voice-agent/.env`. English questions use English STT/TTS; Hindi and Odia questions use Sarvam STT/TTS with explicit `hi-IN` or `od-IN` language codes. If Sarvam credentials are missing, the worker reports a clear configuration error and the patient can still type the answer.
+6. Start MongoDB and the API in one terminal:
+   ```bash
+   pnpm --dir server dev
+   ```
+   Start the voice worker separately:
    ```bash
    pnpm --dir voice-agent install
    pnpm --dir voice-agent dev
    ```
-6. Use the Follow-ups link on the patient case page. The backend issues a short-lived token scoped to the follow-up room. The browser microphone is paused while the agent is speaking. The transcript is shown in the editor and is stored only when the patient submits the answer.
+   Start the React client separately using `pnpm --dir client dev`.
+7. When a doctor sends a follow-up, the question script determines the voice language. The agent reads the original question without translating it, listens to the answer in the same language, and displays the native-language transcript for patient review. The answer is stored in that language. A separate concise English summary is generated for the clinician and never replaces the original answer.
+8. If English-summary generation fails, the original answer remains saved and visible to the care team with a pending/failed summary status. Retrying the same answer submission can retry summary generation without creating a second answer.
 
-If LiveKit credentials are missing, the voice-token endpoint returns a provider-unavailable response and text follow-up remains available. This repository change cannot verify your LiveKit account, URLs, network/firewall setup, or provider credentials. Speech accuracy and voice quality for English, Hindi and Odia must be tested with qualified language reviewers before a deployment claims support for those languages. No raw audio is written to the application's database by this voice workflow; external speech/LLM providers may apply their own data-retention terms.
+No raw audio is stored in the application's MongoDB by this voice workflow; the final speech transcript is saved only after the patient submits it. OpenAI/Sarvam provider retention terms still apply. Actual voice quality and speech recognition for English, Hindi, and Odia should be tested with representative speakers before any real-world use.
 
 ### Clinical safety review gate
 

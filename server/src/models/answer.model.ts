@@ -9,6 +9,9 @@ export interface IAnswer extends Document {
   questionId: Types.ObjectId;
   answer: string;
   mode: AnswerMode;
+  language?: "english" | "hindi" | "odia";
+  englishSummary?: string;
+  englishSummaryStatus?: "PENDING" | "READY" | "FAILED";
   idempotencyKey?: string;
   payloadHash?: string;
   submittedById?: Types.ObjectId;
@@ -33,6 +36,15 @@ const answerSchema = new Schema<IAnswer>(
       type: String,
       enum: Object.values(AnswerMode),
       default: AnswerMode.TEXT,
+    },
+    // Original answer stays in its transcribed language; English summary is a
+    // separate clinician aid and must never overwrite the patient response.
+    language: { type: String, enum: ["english", "hindi", "odia"] },
+    englishSummary: { type: String, trim: true, maxlength: 1200 },
+    englishSummaryStatus: {
+      type: String,
+      enum: ["PENDING", "READY", "FAILED"],
+      default: "PENDING",
     },
     idempotencyKey: {
       type: String,

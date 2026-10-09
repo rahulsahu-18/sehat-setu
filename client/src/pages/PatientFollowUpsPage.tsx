@@ -23,6 +23,12 @@ type VoiceTranscriptEvent = {
   language?: string;
 };
 
+function languageName(language: string | undefined) {
+  if (language === "odia") return "Odia";
+  if (language === "hindi") return "Hindi";
+  return "English";
+}
+
 function PatientFollowUpsPage() {
   const { questionId } = useParams();
   const navigate = useNavigate();
@@ -269,6 +275,9 @@ function PatientFollowUpsPage() {
               </div>
               <h2 style={{ fontSize: 18, margin: "0 0 10px" }}>Original question from your care team</h2>
               <blockquote style={{ margin: 0, padding: 16, borderLeft: "4px solid #0f8995", background: "#f2f9fa", borderRadius: "0 12px 12px 0", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{followUp.question}</blockquote>
+              <p style={{ margin: "10px 0 0", color: "#557079", lineHeight: 1.55, fontSize: 13 }}>
+                Voice language: <strong>{languageName(followUp.language)}</strong>. Speak your answer in this language; the transcript will be saved in the same language, and a separate English summary will be prepared for your care team.
+              </p>
               {followUp.answer ? (
                 <div style={{ marginTop: 20 }}>
                   <h3 style={{ display: "flex", gap: 8, alignItems: "center" }}><CheckCircle2 size={18} color="#167c57" /> Your submitted answer</h3>
@@ -307,7 +316,7 @@ function PatientFollowUpsPage() {
                     <button type="button" onClick={() => void submitAnswer()} disabled={saving || !answer.trim() || voiceState === "connected"} style={buttonStyle("#087e8b", "#fff")}>
                       <Send size={16} /> {saving ? "Saving answer…" : "Review and submit answer"}
                     </button>
-                    <span style={{ color: "#657e84", fontSize: 12 }}>{voiceState === "connected" ? (agentSpeaking ? "Care-team question is being spoken; microphone paused." : "Speak naturally; the microphone pauses during voice prompts.") : "Voice needs LiveKit credentials. Text always remains available."}</span>
+                    <span style={{ color: "#657e84", fontSize: 12 }}>{voiceState === "connected" ? (agentSpeaking ? "Care-team question is being spoken; microphone paused." : "Speak naturally; the microphone pauses during voice prompts.") : followUp.language === "hindi" || followUp.language === "odia" ? "Voice needs LiveKit credentials and SARVAM_API_KEY on the voice worker for Hindi/Odia. Text always remains available." : "Voice needs LiveKit credentials. Text always remains available."}</span>
                   </div>
                   <div ref={audioContainerRef} aria-label="Voice agent audio output" />
                 </>

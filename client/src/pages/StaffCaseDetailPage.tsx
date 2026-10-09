@@ -84,6 +84,10 @@ type StaffCaseData = {
   answers: {
     questionId: string;
     answer: string;
+    mode?: "TEXT" | "VOICE";
+    language?: "english" | "hindi" | "odia";
+    englishSummary?: string;
+    englishSummaryStatus?: "PENDING" | "READY" | "FAILED";
     createdAt: string;
   }[];
   auditTrail: {
@@ -931,7 +935,24 @@ function StaffCaseDetailPage() {
                               )}
                             {answer && (
                               <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                                <small>{t("Patient response:")} {answer.answer}</small>
+                                {answer.englishSummary && (
+                                  <div style={{ borderLeft: "3px solid #19816f", background: "#f1faf7", borderRadius: "0 8px 8px 0", padding: "10px 12px" }}>
+                                    <strong>{t("English summary for clinician")}</strong>
+                                    <p style={{ whiteSpace: "pre-wrap", margin: "6px 0 0", lineHeight: 1.55 }}>{answer.englishSummary}</p>
+                                  </div>
+                                )}
+                                {!answer.englishSummary && (
+                                  <small style={{ color: "#795b28" }}>
+                                    {answer.englishSummaryStatus === "FAILED"
+                                      ? t("English summary unavailable. The original patient response is preserved below.")
+                                      : t("English summary pending. The original patient response is preserved below.")}
+                                  </small>
+                                )}
+                                <div>
+                                  <strong>{t("Original patient response")} ({answer.language === "odia" ? "Odia" : answer.language === "hindi" ? "Hindi" : "English"})</strong>
+                                  <p style={{ whiteSpace: "pre-wrap", margin: "5px 0 0", lineHeight: 1.55 }}>{answer.answer}</p>
+                                  <small>{answer.mode === "VOICE" ? t("Transcribed voice answer") : t("Text answer")}</small>
+                                </div>
                                 {item.status === "ANSWERED" && (
                                   <button
                                     className="button button-secondary"

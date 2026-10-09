@@ -144,7 +144,7 @@ export const getStaffCaseDetail = async (req: AuthRequest, res: Response) => {
     ? await Answer.find({
         questionId: { $in: questions.map((question) => question._id) },
       })
-        .select("questionId answer createdAt")
+        .select("questionId answer mode language englishSummary englishSummaryStatus createdAt")
         .sort({ createdAt: 1 })
     : [];
   const detailReadEvent = {
