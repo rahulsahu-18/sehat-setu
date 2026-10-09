@@ -25,6 +25,7 @@ import {
   statusForDecision,
 } from "../utils/caseWorkflow";
 import { facilityCaseFilter } from "../utils/caseAccess";
+import { hashFollowUpQuestionBatch, validFollowUpIdempotencyKey } from "../utils/followUpIdempotency";
 import { notifyPatientFollowUp, notifyPatientCaseReview } from "../utils/notifications";
 import { isAllowedFollowUpTransition } from "../utils/followUpWorkflow";
 
@@ -663,6 +664,8 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
   const staff = await getCurrentStaff(req.user?.userId);
   const { caseId } = req.params;
   const questions = req.body?.questions;
+  const rawKey = req.header("Idempotency-Key")?.trim();
+
   if (!staff) {
     return res
       .status(403)
@@ -672,6 +675,12 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
     return res
       .status(400)
       .json({ success: false, message: "Invalid case reference" });
+  }
+  if (!validFollowUpIdempotencyKey(rawKey)) {
+    return res.status(400).json({
+      success: false,
+      message: "A stable Idempotency-Key is required to create follow-up questions",
+    });
   }
   if (
     !Array.isArray(questions) ||
@@ -701,6 +710,7 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
       .status(400)
       .json({ success: false, message: "Remove duplicate questions" });
   }
+  const payloadHash = hashFollowUpQuestionBatch(normalizedQuestions);
   const caseFilter = facilityCaseFilter(caseId, String(staff.facilityId));
   if (!caseFilter) {
     return res
@@ -720,6 +730,41 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
       message: "Only the assigned clinician can add questions",
     });
   }
+
+  const readExistingBatch = () =>
+    Question.find({ caseId: caseRecord._id, creationKey: rawKey })
+      .sort({ creationIndex: 1 })
+      .lean();
+  const isSameBatch = (existingBatch: Array<{
+    question: string;
+    creationIndex?: number;
+    creationPayloadHash?: string;
+  }>) =>
+    existingBatch.length === normalizedQuestions.length &&
+    existingBatch.every(
+      (item, index) =>
+        item.creationIndex === index &&
+        item.creationPayloadHash === payloadHash &&
+        item.question === normalizedQuestions[index],
+    );
+
+  // Replay is checked before the outstanding-question guard, because a patient
+  // may already have received this exact bundle by the time the retry arrives.
+  const existingBatch = await readExistingBatch();
+  if (existingBatch.length) {
+    if (isSameBatch(existingBatch)) {
+      return res.status(200).json({
+        success: true,
+        replayed: true,
+        data: { createdCount: existingBatch.length },
+      });
+    }
+    return res.status(409).json({
+      success: false,
+      message: "This Idempotency-Key was already used with a different question bundle.",
+    });
+  }
+
   const outstandingQuestion = await Question.findOne({
     caseId: caseRecord._id,
     status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
@@ -731,17 +776,45 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
     });
   }
 
-  const createdQuestions = await Question.insertMany(
-    normalizedQuestions.map((question: string) => ({
-      caseId: caseRecord._id,
-      question,
-      source: QuestionSource.STAFF,
-      status: QuestionStatus.APPROVED,
-      language: caseRecord.intakeLanguage,
-      createdBy: staff._id,
-      reviewedBy: staff._id,
-    })),
-  );
+  let createdQuestions;
+  try {
+    createdQuestions = await Question.insertMany(
+      normalizedQuestions.map((question: string, creationIndex: number) => ({
+        caseId: caseRecord._id,
+        question,
+        source: QuestionSource.STAFF,
+        status: QuestionStatus.APPROVED,
+        language: caseRecord.intakeLanguage,
+        createdBy: staff._id,
+        reviewedBy: staff._id,
+        creationKey: rawKey,
+        creationPayloadHash: payloadHash,
+        creationIndex,
+      })),
+    );
+  } catch (error) {
+    // If parallel retries race, the unique MongoDB index arbitrates the write.
+    // Re-read after a duplicate-key error and report the saved result as replay.
+    const duplicateKey =
+      !!error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: number }).code === 11000;
+    if (!duplicateKey) throw error;
+    const racedBatch = await readExistingBatch();
+    if (isSameBatch(racedBatch)) {
+      return res.status(200).json({
+        success: true,
+        replayed: true,
+        data: { createdCount: racedBatch.length },
+      });
+    }
+    return res.status(409).json({
+      success: false,
+      message: "This question bundle is being saved or its Idempotency-Key conflicts with another request.",
+    });
+  }
+
   await appendCaseAudit(caseRecord._id, {
     action: "STAFF_FOLLOW_UP_QUESTIONS_CREATED",
     actorId: staff._id,
@@ -749,6 +822,7 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
   });
   return res.status(201).json({
     success: true,
+    replayed: false,
     data: { createdCount: createdQuestions.length },
   });
 };
