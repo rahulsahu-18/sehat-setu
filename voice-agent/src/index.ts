@@ -100,6 +100,10 @@ export default defineAgent({
       throw new Error("Unsupported voice workflow metadata.");
     }
 
+    // Jobs are assigned before the browser participant finishes connecting.
+    // Explicitly join the LiveKit room before creating session/event listeners.
+    await ctx.connect();
+
     const followUp = await loadFollowUp(metadata.questionId);
     if (!process.env.OPENAI_API_KEY?.trim()) {
       throw new Error("OpenAI credentials are missing for the LiveKit agent.");
