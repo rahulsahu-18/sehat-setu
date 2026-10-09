@@ -20,6 +20,7 @@ import {
   saveStaffReferralNote,
   shareStaffReferralSlip,
   sendStaffQuestionBundle,
+  reviewStaffFollowUpAnswer,
 } from "../controller/caseReview.controller";
 
 import {
@@ -78,6 +79,12 @@ router.post(
   protect,
   healthcareStaffOnly,
   sendStaffQuestionBundle,
+);
+router.post(
+  "/cases/:caseId/questions/:questionId/answer/review",
+  protect,
+  healthcareStaffOnly,
+  reviewStaffFollowUpAnswer,
 );
 
 // Facility Admin
