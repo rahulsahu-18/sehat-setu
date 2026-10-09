@@ -11,6 +11,9 @@ import userRouter from "./routes/user.routes";
 import facilityRouter from "./routes/facility.routes";
 import staffRoutes from "./routes/staff.routes";
 import { startRetentionCleanup } from "./utils/caseData";
+import notificationRoutes from "./routes/notification.routes";
+import voiceAgentRoutes from "./routes/voiceAgent.routes";
+import { createRateLimiter } from "./middleware/rateLimit.middleware";
 
 if (!process.env.OPENAI_API_KEY?.trim()) {
   delete process.env.OPENAI_API_KEY;
@@ -33,6 +36,26 @@ if (process.env.NODE_ENV === "production") {
   if ((process.env.JWT_SECRET || "").length < 32) {
     throw new Error("JWT_SECRET must be at least 32 characters in production.");
   }
+  const clinicalApprovalFields = [
+    "CLINICAL_SAFETY_POLICY_STATUS",
+    "CLINICAL_SAFETY_POLICY_APPROVED_BY",
+    "CLINICAL_SAFETY_POLICY_APPROVED_AT",
+    "CLINICAL_SAFETY_POLICY_REVIEW_RECORD",
+    "CLINICAL_SAFETY_MESSAGE_ENGLISH",
+    "CLINICAL_SAFETY_MESSAGE_HINDI",
+    "CLINICAL_SAFETY_MESSAGE_ODIA",
+  ] as const;
+  if (
+    process.env.CLINICAL_SAFETY_POLICY_STATUS !== "approved" ||
+    clinicalApprovalFields.slice(1).some((name) => !process.env[name]?.trim())
+  ) {
+    throw new Error(
+      "Production startup blocked: a qualified clinical lead must review and record approval of the configured safety policy.",
+    );
+  }
+  if (Number.isNaN(Date.parse(process.env.CLINICAL_SAFETY_POLICY_APPROVED_AT || ""))) {
+    throw new Error("CLINICAL_SAFETY_POLICY_APPROVED_AT must be a valid ISO date.");
+  }
 }
 
 const allowedOrigins = (
@@ -54,6 +77,7 @@ for (const origin of allowedOrigins) {
 }
 
 const app = express();
+app.disable("x-powered-by");
 const retentionDays = Number(process.env.DATA_RETENTION_DAYS || 90);
 if (!Number.isInteger(retentionDays) || retentionDays < 1 || retentionDays > 3650) {
   throw new Error("DATA_RETENTION_DAYS must be an integer between 1 and 3650.");
@@ -67,6 +91,21 @@ app.use(
 );
 app.use(express.json({ limit: "256kb" }));
 
+// Process-local limits are a baseline. Multi-instance deployments must use a shared store.
+const authRateLimit = createRateLimiter({ windowMs: 60_000, max: 10, message: "Too many authentication attempts. Please try again later." });
+const aiWriteRateLimit = createRateLimiter({ windowMs: 60_000, max: 20, message: "Too many submissions. Please wait and try again." });
+const voiceTokenRateLimit = createRateLimiter({ windowMs: 60_000, max: 8, message: "Too many voice-session requests. Please try again shortly." });
+app.use("/api/v1/patient/register", authRateLimit);
+app.use("/api/v1/patient/login", authRateLimit);
+app.use("/api/v1/user/login", authRateLimit);
+app.use("/api/v1/staff/login", authRateLimit);
+app.use("/api/v1/facility/login", authRateLimit);
+app.use("/api/v1/facility/register", authRateLimit);
+app.use("/api/v1/patient/intake/:caseId/input", aiWriteRateLimit);
+app.use("/api/v1/patient/intake/:caseId/voice", aiWriteRateLimit);
+app.use("/api/v1/patient/follow-ups/:questionId/answer", aiWriteRateLimit);
+app.use("/api/v1/patient/follow-ups/:questionId/voice-token", voiceTokenRateLimit);
+
 app.get("/", (_req, res) => {
   res.send("Server is running");
 });
@@ -77,6 +116,7 @@ app.get("/health", (_req, res) => {
     status: databaseReady ? "ok" : "unavailable",
     database: databaseReady ? "connected" : "disconnected",
     aiIntakeConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    liveKitConfigured: Boolean(process.env.LIVEKIT_URL?.trim() && process.env.LIVEKIT_API_KEY?.trim() && process.env.LIVEKIT_API_SECRET?.trim()),
   });
 });
 
@@ -86,6 +126,8 @@ app.use("/api/v1/staff", staffRoutes);
 app.use("/api/v1/user", userRouter);
 
 app.use("/api/v1/facility", facilityRouter);
+app.use("/api/v1/notifications", notificationRoutes);
+app.use("/internal/voice", voiceAgentRoutes);
 
 const PORT = Number(process.env.PORT || 5000);
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {

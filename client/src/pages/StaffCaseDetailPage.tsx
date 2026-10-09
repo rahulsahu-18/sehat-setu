@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -131,6 +131,7 @@ function StaffCaseDetailPage() {
   const [guidance, setGuidance] = useState("");
   const [questionDraft, setQuestionDraft] = useState("");
   const [questionDrafts, setQuestionDrafts] = useState<string[]>([]);
+  const questionBundleKeyRef = useRef<{ payload: string; key: string } | null>(null);
   const [referralDestination, setReferralDestination] = useState("");
   const [referralQuestion, setReferralQuestion] = useState("");
   const [patientInstructions, setPatientInstructions] = useState("");
@@ -241,6 +242,22 @@ function StaffCaseDetailPage() {
     }
   };
 
+  const reviewFollowUpAnswer = async (questionId: string) => {
+    if (!caseId) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await api.post(`/staff/cases/${caseId}/questions/${questionId}/answer/review`, {});
+      await loadCase();
+      setSuccess(t("Patient follow-up answer marked as reviewed."));
+    } catch (requestError: any) {
+      setError(t(requestError.response?.data?.message || "Unable to review this answer."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const sendApprovedQuestions = async () => {
     if (!caseId) return;
     setSaving(true);
@@ -323,9 +340,19 @@ function StaffCaseDetailPage() {
     setError("");
     setSuccess("");
     try {
-      const response = await api.post(`/staff/cases/${caseId}/questions`, {
-        questions: questionDrafts,
-      });
+      const payloadIdentity = JSON.stringify(questionDrafts.map((question) => question.trim()));
+      const savedKey = questionBundleKeyRef.current;
+      const idempotencyKey =
+        savedKey?.payload === payloadIdentity ? savedKey.key : crypto.randomUUID();
+      // Keep the same key while retrying the same draft after a timeout/network
+      // error. The questions themselves are not persisted in browser storage.
+      questionBundleKeyRef.current = { payload: payloadIdentity, key: idempotencyKey };
+      const response = await api.post(
+        `/staff/cases/${caseId}/questions`,
+        { questions: questionDrafts },
+        { headers: { "Idempotency-Key": idempotencyKey } },
+      );
+      questionBundleKeyRef.current = null;
       setQuestionDrafts([]);
       await loadCase();
       setSuccess(
@@ -336,7 +363,7 @@ function StaffCaseDetailPage() {
       );
     } catch (requestError: any) {
       setError(
-        t(requestError.response?.data?.message || "Unable to add questions."),
+        t(requestError.response?.data?.message || "Unable to add questions. Retry the same draft to safely resume."),
       );
     } finally {
       setSaving(false);
@@ -903,7 +930,19 @@ function StaffCaseDetailPage() {
                                 </div>
                               )}
                             {answer && (
-                              <small>{t("Patient response:")} {answer.answer}</small>
+                              <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                                <small>{t("Patient response:")} {answer.answer}</small>
+                                {item.status === "ANSWERED" && (
+                                  <button
+                                    className="button button-secondary"
+                                    type="button"
+                                    onClick={() => void reviewFollowUpAnswer(item._id)}
+                                    disabled={saving}
+                                  >
+                                    {t("Mark answer reviewed")}
+                                  </button>
+                                )}
+                              </div>
                             )}
                             <time>
                               {new Date(item.createdAt).toLocaleString(

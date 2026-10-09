@@ -260,7 +260,11 @@ test("persists multiple turns by case and ignores browser conversation history",
     return stored;
   });
   patch(Question, "findOne", () => ({ sort: async () => null }));
-  patch(Question, "find", () => ({ select: async () => [] }));
+  patch(Question, "find", () => ({
+    select() { return this; },
+    lean: async () => [],
+    then(resolve, reject) { return Promise.resolve([]).then(resolve, reject); },
+  }));
 
   const send = async (caseId, content, browserHistory, mode = "TEXT") => {
     const res = responseRecorder();
@@ -296,8 +300,7 @@ test("persists multiple turns by case and ignores browser conversation history",
   assert.equal(providerRequests[2].messages.some((message) => message.content.includes("Synthetic first case symptom")), false);
 });
 
-test("accepts a patient answer to a sent follow-up while waiting for the patient", async () => {
-  process.env.OPENAI_API_KEY = "synthetic-test-key";
+test("requires individual answers instead of applying one intake message to every sent follow-up", async () => {
   const patientId = "64b000000000000000000011";
   const caseId = new Types.ObjectId("64b000000000000000000051");
   const questions = [
@@ -305,44 +308,39 @@ test("accepts a patient answer to a sent follow-up while waiting for the patient
       _id: new Types.ObjectId("64b000000000000000000052"),
       question: "When did the symptom begin?",
       status: "SENT",
-      async save() {},
+      source: "STAFF",
     },
     {
       _id: new Types.ObjectId("64b000000000000000000053"),
       question: "Has it changed since it began?",
       status: "SENT",
-      async save() {},
+      source: "STAFF",
     },
   ];
   const caseRecord = createCase(caseId);
   caseRecord.status = "WAITING_FOR_PATIENT";
   const answers = [];
-  global.fetch = async () => new Response(JSON.stringify({
-    choices: [{ message: { content: JSON.stringify({
-      message: "Thank you for clarifying.",
-      summary: "Synthetic symptom summary",
-      missingInformation: [],
-      contradictions: [],
-      urgencySignals: [],
-      followUpQuestion: null,
-      complete: false,
-    }) } }],
-  }), { status: 200, headers: { "Content-Type": "application/json" } });
+  let providerCalled = false;
+  global.fetch = async () => {
+    providerCalled = true;
+    throw new Error("The AI provider should not be called for staff follow-ups");
+  };
   patch(Case, "findOne", async () => caseRecord);
-  patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
-  patch(CaseInput, "create", async (record) => ({ ...record, _id: new Types.ObjectId() }));
+  patch(AISummary, "findOne", () => ({ sort: async () => null }));
   patch(CaseInput, "find", () => ({
     sort() { return this; },
     select: async () => [],
   }));
-  patch(AISummary, "findOne", () => ({ sort: async () => null }));
-  patch(AISummary, "countDocuments", async () => 0);
-  patch(AISummary, "create", async (record) => ({ ...record, _id: new Types.ObjectId() }));
-  patch(Question, "find", (filter) =>
-    filter.status === "SENT"
-      ? { sort: async () => questions }
-      : { select: async () => questions },
-  );
+  patch(Question, "find", (filter) => {
+    if (filter.status && filter.status.$in) {
+      return { sort: async () => questions };
+    }
+    return {
+      select() { return this; },
+      lean: async () => [],
+      then(resolve, reject) { return Promise.resolve([]).then(resolve, reject); },
+    };
+  });
   patch(Answer, "create", async (record) => {
     answers.push(record);
     return record;
@@ -358,11 +356,11 @@ test("accepts a patient answer to a sent follow-up while waiting for the patient
     res,
   );
 
-  assert.equal(res.statusCode, 201, res.body?.message);
-  assert.equal(answers.length, 2);
-  assert.ok(answers.every((answer) => answer.answer === "It started yesterday"));
-  assert.ok(questions.every((question) => question.status === "ANSWERED"));
-  assert.equal(caseRecord.status, "AI_PROCESSING");
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.message, /each care-team follow-up separately/i);
+  assert.equal(answers.length, 0);
+  assert.ok(questions.every((question) => question.status === "SENT"));
+  assert.equal(providerCalled, false);
 });
 
 function createCase(_id) {

@@ -25,6 +25,9 @@ import {
   statusForDecision,
 } from "../utils/caseWorkflow";
 import { facilityCaseFilter } from "../utils/caseAccess";
+import { hashFollowUpQuestionBatch, validFollowUpIdempotencyKey } from "../utils/followUpIdempotency";
+import { notifyPatientFollowUp, notifyPatientCaseReview } from "../utils/notifications";
+import { isAllowedFollowUpTransition } from "../utils/followUpWorkflow";
 
 type StaffActor = {
   _id: Types.ObjectId;
@@ -636,8 +639,12 @@ export const reviewStaffQuestion = async (req: AuthRequest, res: Response) => {
       .status(404)
       .json({ success: false, message: "Pending AI question not found" });
   }
-  question.status =
+  const nextQuestionStatus =
     decision === "APPROVE" ? QuestionStatus.APPROVED : QuestionStatus.REJECTED;
+  if (!isAllowedFollowUpTransition(question.status, nextQuestionStatus)) {
+    return res.status(409).json({ success: false, message: "Invalid follow-up question state transition" });
+  }
+  question.status = nextQuestionStatus;
   question.reviewedBy = staff._id;
   await question.save();
   await appendCaseAudit(caseRecord._id, {
@@ -657,6 +664,8 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
   const staff = await getCurrentStaff(req.user?.userId);
   const { caseId } = req.params;
   const questions = req.body?.questions;
+  const rawKey = req.header("Idempotency-Key")?.trim();
+
   if (!staff) {
     return res
       .status(403)
@@ -666,6 +675,12 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
     return res
       .status(400)
       .json({ success: false, message: "Invalid case reference" });
+  }
+  if (!validFollowUpIdempotencyKey(rawKey)) {
+    return res.status(400).json({
+      success: false,
+      message: "A stable Idempotency-Key is required to create follow-up questions",
+    });
   }
   if (
     !Array.isArray(questions) ||
@@ -695,6 +710,7 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
       .status(400)
       .json({ success: false, message: "Remove duplicate questions" });
   }
+  const payloadHash = hashFollowUpQuestionBatch(normalizedQuestions);
   const caseFilter = facilityCaseFilter(caseId, String(staff.facilityId));
   if (!caseFilter) {
     return res
@@ -714,9 +730,44 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
       message: "Only the assigned clinician can add questions",
     });
   }
+
+  const readExistingBatch = () =>
+    Question.find({ caseId: caseRecord._id, creationKey: rawKey })
+      .sort({ creationIndex: 1 })
+      .lean();
+  const isSameBatch = (existingBatch: Array<{
+    question: string;
+    creationIndex?: number;
+    creationPayloadHash?: string;
+  }>) =>
+    existingBatch.length === normalizedQuestions.length &&
+    existingBatch.every(
+      (item, index) =>
+        item.creationIndex === index &&
+        item.creationPayloadHash === payloadHash &&
+        item.question === normalizedQuestions[index],
+    );
+
+  // Replay is checked before the outstanding-question guard, because a patient
+  // may already have received this exact bundle by the time the retry arrives.
+  const existingBatch = await readExistingBatch();
+  if (existingBatch.length) {
+    if (isSameBatch(existingBatch)) {
+      return res.status(200).json({
+        success: true,
+        replayed: true,
+        data: { createdCount: existingBatch.length },
+      });
+    }
+    return res.status(409).json({
+      success: false,
+      message: "This Idempotency-Key was already used with a different question bundle.",
+    });
+  }
+
   const outstandingQuestion = await Question.findOne({
     caseId: caseRecord._id,
-    status: QuestionStatus.SENT,
+    status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
   });
   if (outstandingQuestion) {
     return res.status(409).json({
@@ -725,16 +776,45 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
     });
   }
 
-  const createdQuestions = await Question.insertMany(
-    normalizedQuestions.map((question: string) => ({
-      caseId: caseRecord._id,
-      question,
-      source: QuestionSource.STAFF,
-      status: QuestionStatus.APPROVED,
-      createdBy: staff._id,
-      reviewedBy: staff._id,
-    })),
-  );
+  let createdQuestions: unknown[];
+  try {
+    createdQuestions = await Question.insertMany(
+      normalizedQuestions.map((question: string, creationIndex: number) => ({
+        caseId: caseRecord._id,
+        question,
+        source: QuestionSource.STAFF,
+        status: QuestionStatus.APPROVED,
+        language: caseRecord.intakeLanguage,
+        createdBy: staff._id,
+        reviewedBy: staff._id,
+        creationKey: rawKey,
+        creationPayloadHash: payloadHash,
+        creationIndex,
+      })),
+    );
+  } catch (error) {
+    // If parallel retries race, the unique MongoDB index arbitrates the write.
+    // Re-read after a duplicate-key error and report the saved result as replay.
+    const duplicateKey =
+      !!error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: number }).code === 11000;
+    if (!duplicateKey) throw error;
+    const racedBatch = await readExistingBatch();
+    if (isSameBatch(racedBatch)) {
+      return res.status(200).json({
+        success: true,
+        replayed: true,
+        data: { createdCount: racedBatch.length },
+      });
+    }
+    return res.status(409).json({
+      success: false,
+      message: "This question bundle is being saved or its Idempotency-Key conflicts with another request.",
+    });
+  }
+
   await appendCaseAudit(caseRecord._id, {
     action: "STAFF_FOLLOW_UP_QUESTIONS_CREATED",
     actorId: staff._id,
@@ -742,6 +822,7 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
   });
   return res.status(201).json({
     success: true,
+    replayed: false,
     data: { createdCount: createdQuestions.length },
   });
 };
@@ -785,7 +866,7 @@ export const sendStaffQuestionBundle = async (
 
   const outstandingQuestion = await Question.findOne({
     caseId: caseRecord._id,
-    status: QuestionStatus.SENT,
+    status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
   });
   if (outstandingQuestion) {
     return res.status(409).json({
@@ -818,6 +899,9 @@ export const sendStaffQuestionBundle = async (
 
   const previousStatus = caseRecord.status;
   for (const question of approvedQuestions) {
+    if (!isAllowedFollowUpTransition(question.status, QuestionStatus.SENT)) {
+      return res.status(409).json({ success: false, message: "A follow-up question is not in a sendable state" });
+    }
     question.status = QuestionStatus.SENT;
     question.reviewedBy = staff._id;
     await question.save();
@@ -831,6 +915,9 @@ export const sendStaffQuestionBundle = async (
     fromStatus: previousStatus,
     toStatus: caseRecord.status,
   });
+  await Promise.all(approvedQuestions.map((question) =>
+    notifyPatientFollowUp(caseRecord._id, question._id, staff._id),
+  ));
   return res.status(200).json({
     success: true,
     data: { sentCount: approvedQuestions.length, status: caseRecord.status },
@@ -952,6 +1039,7 @@ export const reviewStaffCase = async (req: AuthRequest, res: Response) => {
             QuestionStatus.PENDING,
             QuestionStatus.APPROVED,
             QuestionStatus.SENT,
+            QuestionStatus.IN_PROGRESS,
           ],
         },
       },
@@ -967,6 +1055,12 @@ export const reviewStaffCase = async (req: AuthRequest, res: Response) => {
     fromPriority: previousPriority,
     toPriority: nextPriority,
   });
+  await notifyPatientCaseReview(
+    caseRecord._id,
+    decision._id,
+    staff._id,
+    targetStatus === CaseStatus.COMPLETED,
+  );
 
   return res.status(201).json({
     success: true,
@@ -976,4 +1070,43 @@ export const reviewStaffCase = async (req: AuthRequest, res: Response) => {
       priority: caseRecord.priority,
     },
   });
+};
+
+
+export const reviewStaffFollowUpAnswer = async (req: AuthRequest, res: Response) => {
+  const staff = await getCurrentStaff(req.user?.userId);
+  const { caseId, questionId } = req.params;
+  if (!staff) return res.status(403).json({ success: false, message: "Staff access required" });
+  if (!validCaseId(caseId) || !validCaseId(questionId)) return res.status(400).json({ success: false, message: "Invalid follow-up reference" });
+
+  const caseFilter = facilityCaseFilter(caseId, String(staff.facilityId));
+  if (!caseFilter) return res.status(400).json({ success: false, message: "Invalid case reference" });
+  const caseRecord = await Case.findOne(caseFilter);
+  if (!caseRecord) return res.status(404).json({ success: false, message: "Case not found" });
+  if (caseRecord.assignedStaffId && idString(caseRecord.assignedStaffId) !== String(staff._id)) {
+    return res.status(403).json({ success: false, message: "Only the assigned clinician can review this answer" });
+  }
+
+  const question = await Question.findOne({
+    _id: questionId,
+    caseId: caseRecord._id,
+    status: QuestionStatus.ANSWERED,
+  });
+  if (!question) {
+    const existing = await Question.findOne({ _id: questionId, caseId: caseRecord._id, status: QuestionStatus.REVIEWED });
+    if (existing) return res.status(200).json({ success: true, data: { status: existing.status, replayed: true } });
+    return res.status(404).json({ success: false, message: "Submitted follow-up answer not found" });
+  }
+  if (!isAllowedFollowUpTransition(question.status, QuestionStatus.REVIEWED)) {
+    return res.status(409).json({ success: false, message: "Invalid follow-up answer review transition" });
+  }
+  question.status = QuestionStatus.REVIEWED;
+  question.reviewedBy = staff._id;
+  await question.save();
+  await appendCaseAudit(caseRecord._id, {
+    action: "STAFF_REVIEWED_FOLLOW_UP_ANSWER",
+    actorId: staff._id,
+    timestamp: new Date(),
+  });
+  return res.status(200).json({ success: true, data: { status: question.status } });
 };

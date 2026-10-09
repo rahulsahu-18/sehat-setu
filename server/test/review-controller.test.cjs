@@ -9,6 +9,7 @@ const { User } = require("../dist/models/user.model.js");
 const { Question } = require("../dist/models/question.model.js");
 const { Decision } = require("../dist/models/decision.model.js");
 const { ReferralNote } = require("../dist/models/referralNote.model.js");
+const { Notification } = require("../dist/models/notification.model.js");
 
 const originals = new Map();
 const patched = [];
@@ -48,8 +49,19 @@ function staff(id, facilityId) {
 function queryResult(value) {
   return {
     populate() { return this; },
+    select() { return this; },
+    sort() { return this; },
+    lean() { return Promise.resolve(value); },
+    exec() { return Promise.resolve(value); },
     then(resolve, reject) { return Promise.resolve(value).then(resolve, reject); },
   };
+}
+
+function stubPatientNotifications(patientId = "64b000000000000000000099") {
+  patch(Case, "findById", () => queryResult({ patientId: new Types.ObjectId(patientId) }));
+  patch(Notification, "findOneAndUpdate", () => ({
+    exec: async () => ({ acknowledged: true }),
+  }));
 }
 
 test("denies staff case details across facilities", async () => {
@@ -222,6 +234,7 @@ test("records a review without requiring internal assessment notes", async () =>
   let savedDecision;
   patch(User, "findById", () => ({ select: async () => staff(staffId, facilityId) }));
   patch(Case, "findOne", async () => caseRecord);
+  stubPatientNotifications();
   patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
   patch(Question, "updateMany", async () => ({ modifiedCount: 0 }));
   patch(Decision.prototype, "save", async function save() {
@@ -263,10 +276,27 @@ test("queues clinician-authored questions and sends the approved bundle", async 
   const queuedQuestions = [];
   patch(User, "findById", () => ({ select: async () => staffRecord }));
   patch(Case, "findOne", async () => caseRecord);
+  stubPatientNotifications();
   patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
   patch(Question, "findOne", async () => null);
+  patch(Question, "find", (filter) => {
+    if (filter.creationKey) {
+      return queryResult(queuedQuestions.filter((question) => question.creationKey === filter.creationKey));
+    }
+    if (filter.status === "APPROVED") {
+      return queryResult(queuedQuestions.filter((question) =>
+        question.status === "APPROVED" &&
+        filter.source.$in.includes(question.source),
+      ));
+    }
+    return queryResult([]);
+  });
   patch(Question, "insertMany", async (records) => {
-    const created = records.map((record) => ({ ...record, async save() {} }));
+    const created = records.map((record) => ({
+      ...record,
+      _id: new Types.ObjectId(),
+      async save() {},
+    }));
     queuedQuestions.push(...created);
     return created;
   });
@@ -277,13 +307,44 @@ test("queues clinician-authored questions and sends the approved bundle", async 
       user: { userId: staffId, role: "DOCTOR", facilityId },
       params: { caseId },
       body: { questions: ["When did this symptom start?", "Has it changed since then?"] },
+      header: (name) => name.toLowerCase() === "idempotency-key" ? "doctor-question-bundle-key-0001" : undefined,
     },
     createResponse,
   );
   assert.equal(createResponse.statusCode, 201);
   assert.equal(createResponse.body.data.createdCount, 2);
   assert.ok(queuedQuestions.every((question) => question.status === "APPROVED"));
+
+  const originalCount = queuedQuestions.length;
+  const replayResponse = responseRecorder();
+  await reviewController.createStaffQuestions(
+    {
+      user: { userId: staffId, role: "DOCTOR", facilityId },
+      params: { caseId },
+      body: { questions: ["When did this symptom start?", "Has it changed since then?"] },
+      header: (name) => name.toLowerCase() === "idempotency-key" ? "doctor-question-bundle-key-0001" : undefined,
+    },
+    replayResponse,
+  );
+  assert.equal(replayResponse.statusCode, 200);
+  assert.equal(replayResponse.body.replayed, true);
+  assert.equal(queuedQuestions.length, originalCount);
+
+  const conflictResponse = responseRecorder();
+  await reviewController.createStaffQuestions(
+    {
+      user: { userId: staffId, role: "DOCTOR", facilityId },
+      params: { caseId },
+      body: { questions: ["A different follow-up question?"] },
+      header: (name) => name.toLowerCase() === "idempotency-key" ? "doctor-question-bundle-key-0001" : undefined,
+    },
+    conflictResponse,
+  );
+  assert.equal(conflictResponse.statusCode, 409);
+  assert.equal(queuedQuestions.length, originalCount);
+
   queuedQuestions.push({
+    _id: new Types.ObjectId(),
     caseId: new Types.ObjectId(caseId),
     question: "Do you have any other symptoms?",
     source: "AI",
@@ -291,11 +352,6 @@ test("queues clinician-authored questions and sends the approved bundle", async 
     async save() {},
   });
 
-  patch(Question, "find", async (filter) => {
-    assert.equal(filter.status, "APPROVED");
-    assert.deepEqual(filter.source.$in, ["AI", "STAFF"]);
-    return queuedQuestions;
-  });
   const sendResponse = responseRecorder();
   await reviewController.sendStaffQuestionBundle(
     {
@@ -325,6 +381,7 @@ test("moving a waiting case to final review cancels outstanding questions", asyn
   let questionUpdate;
   patch(User, "findById", () => ({ select: async () => staff(staffId, facilityId) }));
   patch(Case, "findOne", async () => caseRecord);
+  stubPatientNotifications();
   patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
   patch(Question, "updateMany", async (filter, update) => {
     questionUpdate = { filter, update };

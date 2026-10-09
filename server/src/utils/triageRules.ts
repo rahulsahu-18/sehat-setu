@@ -179,17 +179,23 @@ export function evaluateSafetyFlags(
       : value.statuses.has("UNCERTAIN")
         ? "UNCERTAIN"
         : "POSSIBLY_PRESENT";
+    const fallbackInstruction =
+      language === "hindi"
+        ? "संभावित आपातकालीन चेतावनी: इस चैट का इंतज़ार न करें। सुविधा की आपातकालीन प्रक्रिया का पालन करें या तुरंत योग्य स्वास्थ्यकर्मी से मूल्यांकन कराएं।"
+        : language === "odia"
+          ? "ସମ୍ଭାବ୍ୟ ଜରୁରୀ ସତର୍କତା: ଏହି ଚାଟ୍ ପାଇଁ ଅପେକ୍ଷା କରନ୍ତୁ ନାହିଁ। ସୁବିଧାର ଜରୁରୀ ପ୍ରୋଟୋକଲ୍ ଅନୁସରଣ କରନ୍ତୁ କିମ୍ବା ତୁରନ୍ତ ଯୋଗ୍ୟ ସ୍ୱାସ୍ଥ୍ୟକର୍ମୀଙ୍କ ମୂଲ୍ୟାଙ୍କନ ନିଅନ୍ତୁ।"
+          : "Possible emergency warning: do not wait for this chat. Follow the facility emergency protocol or seek immediate assessment by a qualified professional.";
+    const configuredInstruction = language === "hindi"
+      ? process.env.CLINICAL_SAFETY_MESSAGE_HINDI
+      : language === "odia"
+        ? process.env.CLINICAL_SAFETY_MESSAGE_ODIA
+        : process.env.CLINICAL_SAFETY_MESSAGE_ENGLISH;
     return {
       ruleId,
       status,
       reportedTerm: value.term,
       reason: value.reason,
-      instruction:
-        language === "hindi"
-          ? "संभावित आपातकालीन चेतावनी: इस चैट का इंतज़ार न करें। सुविधा की आपातकालीन प्रक्रिया का पालन करें या तुरंत योग्य स्वास्थ्यकर्मी से मूल्यांकन कराएं।"
-          : language === "odia"
-            ? "ସମ୍ଭାବ୍ୟ ଜରୁରୀ ସତର୍କତା: ଏହି ଚାଟ୍ ପାଇଁ ଅପେକ୍ଷା କରନ୍ତୁ ନାହିଁ। ସୁବିଧାର ଜରୁରୀ ପ୍ରୋଟୋକଲ୍ ଅନୁସରଣ କରନ୍ତୁ କିମ୍ବା ତୁରନ୍ତ ଯୋଗ୍ୟ ସ୍ୱାସ୍ଥ୍ୟକର୍ମୀଙ୍କ ମୂଲ୍ୟାଙ୍କନ ନିଅନ୍ତୁ।"
-            : "Possible emergency warning: do not wait for this chat. Follow the facility emergency protocol or seek immediate assessment by a qualified professional.",
+      instruction: configuredInstruction?.trim() || fallbackInstruction,
       reviewRequired: true,
     };
   });

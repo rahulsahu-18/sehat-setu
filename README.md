@@ -25,6 +25,44 @@ The project uses MongoDB/Mongoose; there are no SQL migrations. Existing `Case` 
 - `pnpm --dir client build` typechecks and creates a production frontend bundle.
 - `pnpm --dir server build` typechecks and compiles the API.
 
+## Doctor follow-ups, voice sessions and notifications
+
+Follow-up questions are tracked independently by question ID. Each patient response is stored against exactly one follow-up question in MongoDB. The answer endpoint requires an `Idempotency-Key`; a repeat with the same key and payload replays the stored result, while a conflicting second answer receives HTTP 409. The question state lifecycle is `PENDING → APPROVED → SENT → IN_PROGRESS → ANSWERED → REVIEWED`, with rejection/cancellation terminal states where permitted. The API checks ownership against the authenticated patient and facility-scoped staff access.
+
+Persistent in-app notifications are exposed under `GET /api/v1/notifications` and `PATCH /api/v1/notifications/:notificationId/read`. Notification preview text is intentionally generic and should not contain symptoms or other clinical details.
+
+### LiveKit setup (optional for local text development)
+
+1. Create a LiveKit project and keep its API secret on the server/worker only.
+2. Add `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, and `LIVEKIT_AGENT_NAME` to `server/.env`.
+3. Create a long random `VOICE_AGENT_SECRET` and set the exact same value in `server/.env` and `voice-agent/.env`.
+4. Copy `voice-agent/.env.example` to `voice-agent/.env`, configure `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_TRANSCRIPTION_MODEL`. Set `VOICE_AGENT_API_BASE_URL=http://localhost:5000` for local development.
+5. Install the new browser SDK with `pnpm --dir client install`; this also refreshes the client lockfile after the dependency change. Install/start the agent in a separate terminal:
+   ```bash
+   pnpm --dir voice-agent install
+   pnpm --dir voice-agent dev
+   ```
+6. Use the Follow-ups link on the patient case page. The backend issues a short-lived token scoped to the follow-up room. The browser microphone is paused while the agent is speaking. The transcript is shown in the editor and is stored only when the patient submits the answer.
+
+If LiveKit credentials are missing, the voice-token endpoint returns a provider-unavailable response and text follow-up remains available. This repository change cannot verify your LiveKit account, URLs, network/firewall setup, or provider credentials. Speech accuracy and voice quality for English, Hindi and Odia must be tested with qualified language reviewers before a deployment claims support for those languages. No raw audio is written to the application's database by this voice workflow; external speech/LLM providers may apply their own data-retention terms.
+
+### Clinical safety review gate
+
+See [Clinical safety validation and sign-off](docs/clinical-safety-validation.md). The deterministic warning rules remain an unvalidated prototype. Production startup now requires a documented clinical approval attestation through `CLINICAL_SAFETY_POLICY_STATUS`, `CLINICAL_SAFETY_POLICY_APPROVED_BY`, `CLINICAL_SAFETY_POLICY_APPROVED_AT`, and `CLINICAL_SAFETY_POLICY_REVIEW_RECORD`. These values are not independent proof of approval: set them only after a qualified clinical lead has completed and documented review. Automated tests are software checks, not clinical validation.
+
+### Additional checks
+
+A GitHub Actions workflow at `.github/workflows/healthcare-quality.yml` installs each application package, builds the API and frontend/voice worker, and runs synthetic-data server tests. The workflow has been added but has not been observed passing in this execution. For local checks:
+```bash
+pnpm --dir server test
+pnpm --dir client install
+pnpm --dir client build
+pnpm --dir voice-agent install
+pnpm --dir voice-agent build
+```
+
+Rate limits in this prototype use an in-memory process-local store. Multi-instance production deployments must replace it with a shared store and complete a load/security review before relying on it as a global rate limit.
+
 ## Deployment
 
 - Set `NODE_ENV=production`, `MONGO_URI`, `JWT_SECRET` (at least 32 characters), `OPENAI_API_KEY`, `CLIENT_ORIGINS` (comma-separated exact origins, no paths), and `VITE_API_BASE_URL` in the deployment platform's secret/configuration manager. The API refuses production startup when required settings are missing; values are not logged.

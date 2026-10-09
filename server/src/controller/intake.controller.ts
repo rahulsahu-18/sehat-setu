@@ -22,8 +22,10 @@ import { appendCaseAudit } from "../utils/caseAudit";
 import { isAllowedStatusTransition } from "../utils/caseWorkflow";
 import { patientOwnedCaseFilter } from "../utils/caseAccess";
 import { persistIntakeSummary } from "../utils/intakeConversation";
+import { excludeStaffAuthoredQuestions, getIntakeQuestionBudget, MAX_AI_INTAKE_QUESTIONS } from "../utils/intakeBudget";
 import { deleteCaseData } from "../utils/caseData";
 import { User, UserRole } from "../models/user.model";
+import { Notification } from "../models/notification.model";
 import type { AuthRequest } from "../middleware/auth.middleware";
 
 const languages = ["english", "hindi", "odia"] as const;
@@ -118,6 +120,7 @@ export const deletePatientAccount = async (req: AuthRequest, res: Response) => {
     for (const caseRecord of cases) {
       await deleteCaseData(caseRecord._id);
     }
+    await Notification.deleteMany({ recipientId: new Types.ObjectId(patientId) });
     const deletion = await User.deleteOne({
       _id: new Types.ObjectId(patientId),
       role: UserRole.PATIENT,
@@ -363,16 +366,145 @@ export const addPatientIntakeInput = async (
       caseRecord.status === CaseStatus.WAITING_FOR_PATIENT
         ? await Question.find({
             caseId: caseRecord._id,
-            status: QuestionStatus.SENT,
+            status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
           }).sort({ createdAt: 1 })
         : [];
+
     if (pendingQuestions.length) {
-      history.push(
-        ...pendingQuestions.map((question) => ({
-          role: "assistant" as const,
-          content: question.question,
-        })),
+      return res.status(409).json({
+        success: false,
+        message: "Please answer each care-team follow-up separately from the Follow-ups page.",
+      });
+    }
+
+    // Doctor-authored follow-up turns have their own workflow and do not
+    // consume the initial AI intake question budget. Historical transcripts
+    // contain their question text, so remove exact staff-authored questions
+    // before counting the AI's question turns.
+    const staffQuestionRecords = await Question.find({
+      caseId: caseRecord._id,
+      source: QuestionSource.STAFF,
+    }).select("question").lean();
+    const intakeQuestionHistory = excludeStaffAuthoredQuestions(
+      history,
+      staffQuestionRecords.map((question) => question.question),
+    );
+    const intakeBudget = getIntakeQuestionBudget(intakeQuestionHistory);
+    if (!pendingQuestions.length && intakeBudget.exhausted) {
+      const lastSummaryData = latestSummary?.data;
+      const patientReports = [
+        ...history
+          .filter((message) => message.role === "user")
+          .map((message) => message.content),
+        content.trim(),
+      ];
+      const safetyFlags = evaluateSafetyFlags(patientReports, caseRecord.intakeLanguage);
+      const finalMessage = safetyFlags[0]?.instruction ??
+        "Thank you. I have saved your information for a qualified healthcare professional to review. This assistant does not diagnose or prescribe.";
+      const previousStatus = caseRecord.status;
+      const previousPriority = caseRecord.priority;
+      const nextStatus = safetyFlags.length
+        ? CaseStatus.ESCALATED
+        : CaseStatus.WAITING_FOR_REVIEW;
+
+      if (!isAllowedStatusTransition(previousStatus, nextStatus)) {
+        return res.status(409).json({
+          success: false,
+          message: "This case cannot move to the next intake status",
+        });
+      }
+
+      // Persist the patient's final response even though no more AI questions
+      // may be asked. A later summary/provider failure must not discard it.
+      const input = await CaseInput.create({
+        caseId: caseRecord._id,
+        mode: inputMode,
+        content: content.trim(),
+        language: caseRecord.intakeLanguage,
+      });
+      await persistIntakeSummary(
+        caseRecord._id,
+        history,
+        content.trim(),
+        finalMessage,
+        {
+          summary: typeof lastSummaryData?.summary === "string" ? lastSummaryData.summary : "",
+          missingInformation: Array.isArray(lastSummaryData?.missingInformation)
+            ? lastSummaryData.missingInformation
+            : [],
+          contradictions: Array.isArray(lastSummaryData?.contradictions)
+            ? lastSummaryData.contradictions
+            : [],
+          timeline: Array.isArray(lastSummaryData?.timeline)
+            ? lastSummaryData.timeline
+            : [],
+          urgencySignals: Array.isArray(lastSummaryData?.urgencySignals)
+            ? lastSummaryData.urgencySignals
+            : [],
+          deterministicSafetyFlags: safetyFlags,
+          conversationSource: "server-generated-v1",
+          followUpQuestions: [],
+          complete: true,
+          questionBudget: {
+            used: MAX_AI_INTAKE_QUESTIONS,
+            maxQuestions: MAX_AI_INTAKE_QUESTIONS,
+            remaining: 0,
+          },
+        },
       );
+
+      caseRecord.status = nextStatus;
+      if (safetyFlags.length) caseRecord.priority = CasePriority.URGENT;
+      await caseRecord.save();
+      await appendCaseAudit(caseRecord._id, {
+        action: "PATIENT_INTAKE_QUESTION_LIMIT_REACHED",
+        actorId: new Types.ObjectId(patientId),
+        timestamp: new Date(),
+        fromStatus: previousStatus,
+        toStatus: caseRecord.status,
+        fromPriority: previousPriority,
+        toPriority: caseRecord.priority,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Your response was saved and the intake is ready for clinical review.",
+        data: {
+          inputId: input._id,
+          caseNo: caseRecord.caseNo,
+          status: caseRecord.status,
+          priority: caseRecord.priority,
+          reply: finalMessage,
+          summary: typeof lastSummaryData?.summary === "string" ? lastSummaryData.summary : "",
+          missingInformation: Array.isArray(lastSummaryData?.missingInformation)
+            ? lastSummaryData.missingInformation
+            : [],
+          contradictions: Array.isArray(lastSummaryData?.contradictions)
+            ? lastSummaryData.contradictions
+            : [],
+          timeline: Array.isArray(lastSummaryData?.timeline) ? lastSummaryData.timeline : [],
+          urgencySignals: Array.isArray(lastSummaryData?.urgencySignals)
+            ? lastSummaryData.urgencySignals
+            : [],
+          deterministicSafetyFlags: safetyFlags,
+          followUpQuestions: [],
+          staffReviewPending: false,
+          complete: true,
+          questionBudget: {
+            used: MAX_AI_INTAKE_QUESTIONS,
+            maxQuestions: MAX_AI_INTAKE_QUESTIONS,
+            remaining: 0,
+          },
+        },
+      });
+    }
+
+    if (pendingQuestions.length) {
+      return res.status(409).json({
+        success: false,
+        message: "Please answer each care-team follow-up separately from the Follow-ups page.",
+        data: { followUpsPath: "/patient/follow-ups" },
+      });
     }
     const conversationForAI = [
       ...history,
@@ -418,12 +550,30 @@ export const addPatientIntakeInput = async (
           (message, question) => message.replace(question, "").trim(),
           reply.message,
         );
-    const safeAssistantMessage = assistantMessage;
+    const budgetAfterReply = pendingQuestions.length
+      ? intakeBudget
+      : getIntakeQuestionBudget([
+          ...intakeQuestionHistory,
+          { role: "user" as const, content: content.trim() },
+          { role: "assistant" as const, content: assistantMessage },
+        ]);
+    // If the model emits more questions than remain in the budget, do not
+    // deliver that over-budget response; save the answer and hand the case to
+    // the care team instead.
+    const questionLimitReached = !pendingQuestions.length && budgetAfterReply.overLimit;
+    // Report only delivered questions when an over-budget candidate is withheld.
+    const effectiveQuestionBudget = questionLimitReached ? intakeBudget : budgetAfterReply;
+    const safeAssistantMessage = safetyFlags.length
+      ? safetyFlags[0]?.instruction || assistantMessage
+      : questionLimitReached
+        ? "Thank you. I have saved your information for a qualified healthcare professional to review. This assistant does not diagnose or prescribe."
+        : assistantMessage;
+    const safeFollowUpQuestions = questionLimitReached ? [] : followUpQuestions;
     const previousStatus = caseRecord.status;
     const previousPriority = caseRecord.priority;
     const nextStatus = safetyFlags.length
       ? CaseStatus.ESCALATED
-      : reply.complete
+      : reply.complete || questionLimitReached
         ? CaseStatus.WAITING_FOR_REVIEW
         : CaseStatus.AI_PROCESSING;
     if (!isAllowedStatusTransition(previousStatus, nextStatus)) {
@@ -439,20 +589,6 @@ export const addPatientIntakeInput = async (
       content: content.trim(),
       language: caseRecord.intakeLanguage,
     });
-    if (pendingQuestions.length) {
-      for (const pendingQuestion of pendingQuestions) {
-        await Answer.create({
-          questionId: pendingQuestion._id,
-          answer: content.trim(),
-          mode:
-            inputMode === InputMode.VOICE
-              ? AnswerMode.VOICE
-              : AnswerMode.TEXT,
-        });
-        pendingQuestion.status = QuestionStatus.ANSWERED;
-        await pendingQuestion.save();
-      }
-    }
     await persistIntakeSummary(
       caseRecord._id,
       history,
@@ -466,18 +602,24 @@ export const addPatientIntakeInput = async (
         urgencySignals: reply.urgencySignals,
         deterministicSafetyFlags: safetyFlags,
         conversationSource: "server-generated-v1",
-        followUpQuestions,
-        complete: reply.complete,
+        followUpQuestions: safeFollowUpQuestions,
+        complete: reply.complete || questionLimitReached,
+        questionBudget: {
+          used: effectiveQuestionBudget.used,
+          maxQuestions: MAX_AI_INTAKE_QUESTIONS,
+          remaining: effectiveQuestionBudget.remaining,
+        },
       },
     );
 
-    if (followUpQuestions.length && !safetyFlags.length) {
+    if (safeFollowUpQuestions.length && !safetyFlags.length) {
       await Question.insertMany(
-        followUpQuestions.map((question) => ({
+        safeFollowUpQuestions.map((question) => ({
           caseId: caseRecord._id,
           question,
           source: QuestionSource.AI,
           status: QuestionStatus.PENDING,
+          language: caseRecord.intakeLanguage,
         })),
       );
     }
@@ -497,7 +639,9 @@ export const addPatientIntakeInput = async (
 
     return res.status(201).json({
       success: true,
-      message: "Your intake was submitted for AI processing",
+      message: questionLimitReached
+        ? "Your response was saved and the intake is ready for clinical review."
+        : "Your intake was submitted for AI processing",
       data: {
         inputId: input._id,
         caseNo: caseRecord.caseNo,
@@ -510,11 +654,16 @@ export const addPatientIntakeInput = async (
         timeline: reply.timeline,
         urgencySignals: reply.urgencySignals,
         deterministicSafetyFlags: safetyFlags,
-        followUpQuestions,
+        followUpQuestions: safeFollowUpQuestions,
         staffReviewPending: Boolean(
-          followUpQuestions.length && !safetyFlags.length,
+          safeFollowUpQuestions.length && !safetyFlags.length,
         ),
-        complete: reply.complete,
+        complete: reply.complete || questionLimitReached,
+        questionBudget: {
+          used: effectiveQuestionBudget.used,
+          maxQuestions: MAX_AI_INTAKE_QUESTIONS,
+          remaining: effectiveQuestionBudget.remaining,
+        },
       },
     });
   } catch (error) {

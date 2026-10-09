@@ -6,6 +6,7 @@ import { CaseInput } from "../models/caseInput.model";
 import { Decision } from "../models/decision.model";
 import { Question } from "../models/question.model";
 import { ReferralNote } from "../models/referralNote.model";
+import { Notification } from "../models/notification.model";
 
 export async function deleteCaseData(caseId: Types.ObjectId) {
   const questionIds = await Question.find({ caseId }).distinct("_id");
@@ -18,6 +19,7 @@ export async function deleteCaseData(caseId: Types.ObjectId) {
     Decision.deleteMany({ caseId }),
     Question.deleteMany({ caseId }),
     ReferralNote.deleteMany({ caseId }),
+    Notification.deleteMany({ caseId }),
   ]);
   const deletion = await Case.deleteOne({ _id: caseId });
   if (deletion.deletedCount !== 1) {

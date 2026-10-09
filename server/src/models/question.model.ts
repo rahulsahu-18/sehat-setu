@@ -9,7 +9,9 @@ export enum QuestionStatus {
   PENDING = "PENDING",
   APPROVED = "APPROVED",
   SENT = "SENT",
+  IN_PROGRESS = "IN_PROGRESS",
   ANSWERED = "ANSWERED",
+  REVIEWED = "REVIEWED",
   REJECTED = "REJECTED",
   CANCELLED = "CANCELLED",
 }
@@ -19,6 +21,12 @@ export interface IQuestion extends Document {
   question: string;
   source: QuestionSource;
   status: QuestionStatus;
+  submissionKey?: string;
+  submissionStartedAt?: Date;
+  creationKey?: string;
+  creationPayloadHash?: string;
+  creationIndex?: number;
+  language?: string;
   createdBy?: Types.ObjectId;
   reviewedBy?: Types.ObjectId;
   createdAt: Date;
@@ -50,6 +58,12 @@ const questionSchema = new Schema<IQuestion>(
       enum: Object.values(QuestionStatus),
       default: QuestionStatus.PENDING,
     },
+    submissionKey: { type: String, trim: true, maxlength: 128 },
+    submissionStartedAt: { type: Date },
+    creationKey: { type: String, trim: true, maxlength: 128 },
+    creationPayloadHash: { type: String, trim: true, maxlength: 64 },
+    creationIndex: { type: Number, min: 0, max: 9 },
+    language: { type: String, enum: ["english", "hindi", "odia"] },
 
     createdBy: {
       type: Schema.Types.ObjectId,
@@ -67,5 +81,13 @@ const questionSchema = new Schema<IQuestion>(
 );
 
 questionSchema.index({ caseId: 1, status: 1 });
+questionSchema.index(
+  { caseId: 1, creationKey: 1, creationIndex: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { creationKey: { $type: "string" } },
+    name: "unique_follow_up_creation_key_index",
+  },
+);
 
 export const Question = mongoose.model<IQuestion>("Question", questionSchema);

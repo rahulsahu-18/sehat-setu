@@ -1,0 +1,64 @@
+name: Healthcare platform quality gates
+
+on:
+  push:
+    branches: [main, ai-healthcare-gap-fixes]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    name: API build and unit/security tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.27.0 --activate
+      - name: Install API dependencies
+        run: pnpm --dir server install --no-frozen-lockfile
+      - name: Typecheck and run synthetic-data tests
+        run: pnpm --dir server test
+
+  client:
+    name: Frontend production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@12.3.4 --activate
+      - name: Install client dependencies
+        run: pnpm --dir client install --no-frozen-lockfile
+      - name: Build client
+        env:
+          VITE_API_BASE_URL: https://api.example.invalid/api/v1
+        run: pnpm --dir client build
+
+  voice-agent:
+    name: LiveKit voice agent typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@12.3.4 --activate
+      - name: Install voice agent dependencies
+        run: pnpm --dir voice-agent install --no-frozen-lockfile
+      - name: Typecheck and build agent
+        run: pnpm --dir voice-agent build
