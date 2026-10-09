@@ -25,6 +25,7 @@ import { persistIntakeSummary } from "../utils/intakeConversation";
 import { excludeStaffAuthoredQuestions, getIntakeQuestionBudget, MAX_AI_INTAKE_QUESTIONS } from "../utils/intakeBudget";
 import { deleteCaseData } from "../utils/caseData";
 import { User, UserRole } from "../models/user.model";
+import { Notification } from "../models/notification.model";
 import type { AuthRequest } from "../middleware/auth.middleware";
 
 const languages = ["english", "hindi", "odia"] as const;
@@ -119,6 +120,7 @@ export const deletePatientAccount = async (req: AuthRequest, res: Response) => {
     for (const caseRecord of cases) {
       await deleteCaseData(caseRecord._id);
     }
+    await Notification.deleteMany({ recipientId: new Types.ObjectId(patientId) });
     const deletion = await User.deleteOne({
       _id: new Types.ObjectId(patientId),
       role: UserRole.PATIENT,
