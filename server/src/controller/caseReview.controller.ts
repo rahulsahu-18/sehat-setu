@@ -776,7 +776,7 @@ export const createStaffQuestions = async (req: AuthRequest, res: Response) => {
     });
   }
 
-  let createdQuestions;
+  let createdQuestions: unknown[];
   try {
     createdQuestions = await Question.insertMany(
       normalizedQuestions.map((question: string, creationIndex: number) => ({
