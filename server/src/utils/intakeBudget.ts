@@ -26,7 +26,7 @@ export function getIntakeQuestionBudget(
     }
     if (turn.role !== "assistant" || typeof turn.content !== "string") continue;
     const content = turn.content.trim();
-    if (!content || !/[?？]\s*$/.test(content)) continue;
+    if (!content || !/[?？؟]/.test(content)) continue;
     const normalizedQuestion = content.toLocaleLowerCase().replace(/\s+/g, " ").trim();
     seen.add(`${precedingPatientAnswer}\u0000${normalizedQuestion}`);
   }
