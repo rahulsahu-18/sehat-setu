@@ -368,6 +368,13 @@ export const addPatientIntakeInput = async (
           }).sort({ createdAt: 1 })
         : [];
 
+    if (pendingQuestions.length) {
+      return res.status(409).json({
+        success: false,
+        message: "Please answer each care-team follow-up separately from the Follow-ups page.",
+      });
+    }
+
     // Doctor-authored follow-up turns have their own workflow and do not
     // consume the initial AI intake question budget. Historical transcripts
     // contain their question text, so remove exact staff-authored questions
@@ -625,6 +632,7 @@ export const addPatientIntakeInput = async (
           question,
           source: QuestionSource.AI,
           status: QuestionStatus.PENDING,
+          language: caseRecord.intakeLanguage,
         })),
       );
     }
