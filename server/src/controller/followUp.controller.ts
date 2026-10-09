@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 import type { AuthRequest } from "../middleware/auth.middleware";
 import { Answer, AnswerMode } from "../models/answer.model";
 import { Case, CaseStatus } from "../models/case.model";
-import { Question, QuestionStatus } from "../models/question.model";
+import { Question, QuestionSource, QuestionStatus } from "../models/question.model";
 import { appendCaseAudit } from "../utils/caseAudit";
 import { patientOwnedCaseFilter } from "../utils/caseAccess";
 import { isAllowedStatusTransition } from "../utils/caseWorkflow";
@@ -95,7 +95,7 @@ export async function listPatientFollowUps(req: AuthRequest, res: Response) {
   const questions = await Question.find({
     caseId: { $in: cases.map((item) => item._id) },
     status: { $in: activeStatuses },
-    source: { $in: ["STAFF", "AI"] },
+    source: { $in: [QuestionSource.STAFF, QuestionSource.AI] },
   }).sort({ updatedAt: -1 }).limit(100).lean();
   const answers = await Answer.find({ questionId: { $in: questions.map((item) => item._id) } })
     .select("questionId answer mode createdAt").lean();
