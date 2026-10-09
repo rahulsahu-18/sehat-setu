@@ -181,7 +181,7 @@ export async function listPatientFollowUps(req: AuthRequest, res: Response) {
         source: question.source,
         status: question.status,
         createdAt: question.createdAt,
-        answer: answer ? { answer: answer.answer, mode: answer.mode, language: answer.language ?? detectFollowUpLanguage(question.question, caseData?.intakeLanguage), englishSummary: answer.englishSummary, englishSummaryStatus: answer.englishSummaryStatus ?? "PENDING", createdAt: answer.createdAt } : null,
+        answer: answer ? { answer: answer.answer, mode: answer.mode, language: answer.language ?? detectFollowUpLanguage(question.question, caseData?.intakeLanguage), createdAt: answer.createdAt } : null,
       };
     }),
   });
