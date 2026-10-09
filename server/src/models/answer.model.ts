@@ -55,11 +55,11 @@ answerSchema.index({ questionId: 1 });
 // Older prototype answers without idempotency keys are excluded while new
 // submissions are protected from duplicate answers for the same question.
 answerSchema.index(
-  { questionId: 1, idempotencyKey: 1 },
+  { questionId: 1 },
   {
     unique: true,
     partialFilterExpression: { idempotencyKey: { $type: "string" } },
-    name: "unique_idempotency_key_per_follow_up",
+    name: "unique_idempotent_answer_per_follow_up",
   },
 );
 
