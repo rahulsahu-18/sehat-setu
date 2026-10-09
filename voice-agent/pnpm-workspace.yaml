@@ -1,0 +1,5 @@
+allowBuilds:
+  "@livekit/local-inference": true
+  esbuild: true
+  sharp: true
+  "@img/sharp-libvips": true
