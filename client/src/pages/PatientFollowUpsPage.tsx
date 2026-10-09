@@ -33,6 +33,7 @@ function PatientFollowUpsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [voiceState, setVoiceState] = useState<"idle" | "connecting" | "connected" | "error">("idle");
+  const [agentSpeaking, setAgentSpeaking] = useState(false);
   const [error, setError] = useState("");
   const roomRef = useRef<Room | null>(null);
   const microphoneRef = useRef<Awaited<ReturnType<typeof createLocalAudioTrack>> | null>(null);
@@ -79,6 +80,7 @@ function PatientFollowUpsPage() {
     }
     if (audioContainerRef.current) audioContainerRef.current.replaceChildren();
     setVoiceState("idle");
+    setAgentSpeaking(false);
   };
 
   useEffect(() => () => {
@@ -108,6 +110,25 @@ function PatientFollowUpsPage() {
         track.detach().forEach((element) => element.remove());
       });
       room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
+        if (topic === "sehatsetu-followup-agent-state") {
+          try {
+            const stateData = JSON.parse(new TextDecoder().decode(payload)) as {
+              type?: string;
+              state?: string;
+            };
+            if (stateData.type !== "sehatsetu.followup.agent-state") return;
+            const speaking = stateData.state === "speaking";
+            setAgentSpeaking(speaking);
+            if (speaking) {
+              void microphoneRef.current?.mute().catch(() => undefined);
+            } else if (stateData.state === "listening") {
+              void microphoneRef.current?.unmute().catch(() => undefined);
+            }
+          } catch {
+            // Missing state events should not block text or transcript handling.
+          }
+          return;
+        }
         if (topic !== "sehatsetu-followup-transcript") return;
         try {
           const data = JSON.parse(new TextDecoder().decode(payload)) as VoiceTranscriptEvent;
@@ -277,7 +298,7 @@ function PatientFollowUpsPage() {
                     <button type="button" onClick={() => void submitAnswer()} disabled={saving || !answer.trim() || voiceState === "connected"} style={buttonStyle("#087e8b", "#fff")}>
                       <Send size={16} /> {saving ? "Saving answer…" : "Review and submit answer"}
                     </button>
-                    <span style={{ color: "#657e84", fontSize: 12 }}>{voiceState === "connected" ? "Speak naturally; stop voice to review the transcript." : "Voice needs LiveKit credentials. Text always remains available."}</span>
+                    <span style={{ color: "#657e84", fontSize: 12 }}>{voiceState === "connected" ? "{agentSpeaking ? "Care-team question is being spoken; microphone paused." : "Speak naturally; the microphone pauses during voice prompts."}" : "Voice needs LiveKit credentials. Text always remains available."}</span>
                   </div>
                   <div ref={audioContainerRef} aria-label="Voice agent audio output" />
                 </>
