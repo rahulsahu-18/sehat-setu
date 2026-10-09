@@ -187,7 +187,7 @@ test("denies a patient access to another patient's follow-up answer", async () =
   const questionId = new Types.ObjectId("64b000000000000000000062");
   let answerReads = 0;
   let answerWrites = 0;
-  patch(Question, "findById", (id) => queryResult(
+  patch(Question, "findById", (id) => query(
     String(id) === String(questionId)
       ? { _id: questionId, caseId, status: QuestionStatus.SENT }
       : null,
@@ -201,7 +201,7 @@ test("denies a patient access to another patient's follow-up answer", async () =
   });
   patch(Answer, "findOne", () => {
     answerReads += 1;
-    return queryResult(null);
+    return query(null);
   });
   patch(Answer, "create", async () => {
     answerWrites += 1;
