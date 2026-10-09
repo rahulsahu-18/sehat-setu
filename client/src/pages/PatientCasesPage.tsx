@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, ArrowRight, FileText } from "lucide-react";
+import { AlertTriangle, ArrowRight, FileText, MessageCircleQuestion } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { AppHeader } from "@/components/AppHeader";
@@ -94,6 +94,9 @@ function PatientCasesPage() {
           </div>
           <Link className="button button-primary" to="/patient/setup">
             {copy.startNewCase} <ArrowRight size={15} />
+          </Link>
+          <Link className="button button-secondary" to="/patient/follow-ups" style={{ marginLeft: 8 }}>
+            <MessageCircleQuestion size={15} /> Follow-ups
           </Link>
         </header>
 
