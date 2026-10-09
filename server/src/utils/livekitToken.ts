@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 const TOKEN_TTL_SECONDS = 5 * 60;
 
@@ -36,7 +36,11 @@ export function createFollowUpRoomToken(input: FollowUpRoomTokenInput): FollowUp
   if (!input.userId || !input.questionId) throw new Error("Voice session authorization context is missing.");
 
   const now = Math.floor((input.now ?? Date.now()) / 1000);
-  const roomName = `ss-followup-${input.questionId}`;
+  // Access-token agent dispatch is only applied when LiveKit creates a room.
+  // Use a fresh room per voice attempt so retries cannot join a stale room
+  // where the token's agent dispatch was ignored.
+  const voiceSessionId = randomUUID().replace(/-/g, "").slice(0, 16);
+  const roomName = `ss-followup-${input.questionId}-${voiceSessionId}`;
   const identitySuffix = createHash("sha256").update(input.userId).digest("hex").slice(0, 20);
   const claims = {
     iss: apiKey,
