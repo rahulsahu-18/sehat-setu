@@ -22,7 +22,7 @@ import { appendCaseAudit } from "../utils/caseAudit";
 import { isAllowedStatusTransition } from "../utils/caseWorkflow";
 import { patientOwnedCaseFilter } from "../utils/caseAccess";
 import { persistIntakeSummary } from "../utils/intakeConversation";
-import { getIntakeQuestionBudget, MAX_AI_INTAKE_QUESTIONS } from "../utils/intakeBudget";
+import { excludeStaffAuthoredQuestions, getIntakeQuestionBudget, MAX_AI_INTAKE_QUESTIONS } from "../utils/intakeBudget";
 import { deleteCaseData } from "../utils/caseData";
 import { User, UserRole } from "../models/user.model";
 import type { AuthRequest } from "../middleware/auth.middleware";
@@ -369,8 +369,18 @@ export const addPatientIntakeInput = async (
         : [];
 
     // Doctor-authored follow-up turns have their own workflow and do not
-    // consume the initial AI intake question budget.
-    const intakeBudget = getIntakeQuestionBudget(history);
+    // consume the initial AI intake question budget. Historical transcripts
+    // contain their question text, so remove exact staff-authored questions
+    // before counting the AI's question turns.
+    const staffQuestionRecords = await Question.find({
+      caseId: caseRecord._id,
+      source: QuestionSource.STAFF,
+    }).select("question").lean();
+    const intakeQuestionHistory = excludeStaffAuthoredQuestions(
+      history,
+      staffQuestionRecords.map((question) => question.question),
+    );
+    const intakeBudget = getIntakeQuestionBudget(intakeQuestionHistory);
     if (!pendingQuestions.length && intakeBudget.exhausted) {
       const lastSummaryData = latestSummary?.data;
       const patientReports = [
@@ -535,7 +545,7 @@ export const addPatientIntakeInput = async (
     const budgetAfterReply = pendingQuestions.length
       ? intakeBudget
       : getIntakeQuestionBudget([
-          ...history,
+          ...intakeQuestionHistory,
           { role: "user" as const, content: content.trim() },
           { role: "assistant" as const, content: assistantMessage },
         ]);
