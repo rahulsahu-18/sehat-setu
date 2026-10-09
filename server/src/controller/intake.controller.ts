@@ -543,6 +543,8 @@ export const addPatientIntakeInput = async (
     // deliver that over-budget response; save the answer and hand the case to
     // the care team instead.
     const questionLimitReached = !pendingQuestions.length && budgetAfterReply.overLimit;
+    // Report only delivered questions when an over-budget candidate is withheld.
+    const effectiveQuestionBudget = questionLimitReached ? intakeBudget : budgetAfterReply;
     const safeAssistantMessage = safetyFlags.length
       ? safetyFlags[0]?.instruction || assistantMessage
       : questionLimitReached
@@ -599,9 +601,9 @@ export const addPatientIntakeInput = async (
         followUpQuestions: safeFollowUpQuestions,
         complete: reply.complete || questionLimitReached,
         questionBudget: {
-          used: budgetAfterReply.used,
+          used: effectiveQuestionBudget.used,
           maxQuestions: MAX_AI_INTAKE_QUESTIONS,
-          remaining: budgetAfterReply.remaining,
+          remaining: effectiveQuestionBudget.remaining,
         },
       },
     );
