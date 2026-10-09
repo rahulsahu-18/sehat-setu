@@ -13,6 +13,7 @@ import staffRoutes from "./routes/staff.routes";
 import { startRetentionCleanup } from "./utils/caseData";
 import notificationRoutes from "./routes/notification.routes";
 import voiceAgentRoutes from "./routes/voiceAgent.routes";
+import { createRateLimiter } from "./middleware/rateLimit.middleware";
 
 if (!process.env.OPENAI_API_KEY?.trim()) {
   delete process.env.OPENAI_API_KEY;
@@ -73,6 +74,7 @@ for (const origin of allowedOrigins) {
 }
 
 const app = express();
+app.disable("x-powered-by");
 const retentionDays = Number(process.env.DATA_RETENTION_DAYS || 90);
 if (!Number.isInteger(retentionDays) || retentionDays < 1 || retentionDays > 3650) {
   throw new Error("DATA_RETENTION_DAYS must be an integer between 1 and 3650.");
@@ -85,6 +87,21 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "256kb" }));
+
+// Process-local limits are a baseline. Multi-instance deployments must use a shared store.
+const authRateLimit = createRateLimiter({ windowMs: 60_000, max: 10, message: "Too many authentication attempts. Please try again later." });
+const aiWriteRateLimit = createRateLimiter({ windowMs: 60_000, max: 20, message: "Too many submissions. Please wait and try again." });
+const voiceTokenRateLimit = createRateLimiter({ windowMs: 60_000, max: 8, message: "Too many voice-session requests. Please try again shortly." });
+app.use("/api/v1/patient/register", authRateLimit);
+app.use("/api/v1/patient/login", authRateLimit);
+app.use("/api/v1/user/login", authRateLimit);
+app.use("/api/v1/staff/login", authRateLimit);
+app.use("/api/v1/facility/login", authRateLimit);
+app.use("/api/v1/facility/register", authRateLimit);
+app.use("/api/v1/patient/intake/:caseId/input", aiWriteRateLimit);
+app.use("/api/v1/patient/intake/:caseId/voice", aiWriteRateLimit);
+app.use("/api/v1/patient/follow-ups/:questionId/answer", aiWriteRateLimit);
+app.use("/api/v1/patient/follow-ups/:questionId/voice-token", voiceTokenRateLimit);
 
 app.get("/", (_req, res) => {
   res.send("Server is running");
