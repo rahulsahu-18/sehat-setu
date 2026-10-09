@@ -4,7 +4,6 @@ import { Types } from "mongoose";
 import type { AuthRequest } from "../middleware/auth.middleware";
 import { Answer, AnswerMode } from "../models/answer.model";
 import { Case, CaseStatus } from "../models/case.model";
-import { CaseInput, InputMode } from "../models/caseInput.model";
 import { Question, QuestionStatus } from "../models/question.model";
 import { appendCaseAudit } from "../utils/caseAudit";
 import { patientOwnedCaseFilter } from "../utils/caseAccess";
@@ -12,7 +11,12 @@ import { isAllowedStatusTransition } from "../utils/caseWorkflow";
 import { notifyCareTeamAnswer } from "../utils/notifications";
 import { createFollowUpRoomToken } from "../utils/livekitToken";
 
-const activeStatuses = [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS, QuestionStatus.ANSWERED, QuestionStatus.REVIEWED];
+const activeStatuses = [
+  QuestionStatus.SENT,
+  QuestionStatus.IN_PROGRESS,
+  QuestionStatus.ANSWERED,
+  QuestionStatus.REVIEWED,
+];
 
 function validId(value: unknown): value is string {
   return typeof value === "string" && Types.ObjectId.isValid(value);
@@ -27,6 +31,66 @@ async function getOwnedFollowUp(questionId: string, patientId: string) {
   const caseRecord = await Case.findOne(ownedCaseFilter);
   if (!caseRecord) return null;
   return { question, caseRecord };
+}
+
+async function finalizeSavedAnswer(
+  questionId: Types.ObjectId,
+  caseId: Types.ObjectId,
+  patientId: Types.ObjectId,
+  idempotencyKey: string,
+) {
+  const changedQuestion = await Question.findOneAndUpdate(
+    {
+      _id: questionId,
+      caseId,
+      status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
+      submissionKey: idempotencyKey,
+    },
+    { $set: { status: QuestionStatus.ANSWERED } },
+    { new: true },
+  );
+  if (changedQuestion) {
+    await appendCaseAudit(caseId, {
+      action: "PATIENT_FOLLOW_UP_ANSWERED",
+      actorId: patientId,
+      timestamp: new Date(),
+    });
+  }
+
+  const remaining = await Question.countDocuments({
+    caseId,
+    status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
+  });
+  if (
+    remaining === 0 &&
+    isAllowedStatusTransition(CaseStatus.WAITING_FOR_PATIENT, CaseStatus.WAITING_FOR_REVIEW)
+  ) {
+    const updatedCase = await Case.findOneAndUpdate(
+      { _id: caseId, status: CaseStatus.WAITING_FOR_PATIENT },
+      { $set: { status: CaseStatus.WAITING_FOR_REVIEW } },
+      { new: true },
+    );
+    if (updatedCase) {
+      await appendCaseAudit(caseId, {
+        action: "FOLLOW_UP_RESPONSES_COMPLETE",
+        actorId: patientId,
+        timestamp: new Date(),
+        fromStatus: CaseStatus.WAITING_FOR_PATIENT,
+        toStatus: CaseStatus.WAITING_FOR_REVIEW,
+      });
+    }
+  }
+  // Upsert makes notification repair safe after a crash between answer storage
+  // and the notification write.
+  await notifyCareTeamAnswer(caseId, questionId, patientId);
+}
+
+function answerPayloadHash(answer: string, mode: AnswerMode) {
+  return createHash("sha256").update(JSON.stringify({ answer, mode })).digest("hex");
+}
+
+function validIdempotencyKey(value: string | undefined): value is string {
+  return Boolean(value && value.length >= 16 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/.test(value));
 }
 
 export async function listPatientFollowUps(req: AuthRequest, res: Response) {
@@ -70,7 +134,7 @@ export async function getPatientFollowUp(req: AuthRequest, res: Response) {
   if (!patientId || !validId(questionId)) return res.status(400).json({ success: false, message: "Invalid follow-up reference" });
   const owned = await getOwnedFollowUp(questionId, patientId);
   if (!owned) return res.status(404).json({ success: false, message: "Follow-up not found" });
-  const answer = await Answer.findOne({ questionId: owned.question._id }).select("answer mode idempotencyKey payloadHash createdAt").lean();
+  const answer = await Answer.findOne({ questionId: owned.question._id }).select("answer mode createdAt").lean();
   return res.status(200).json({
     success: true,
     data: {
@@ -79,6 +143,7 @@ export async function getPatientFollowUp(req: AuthRequest, res: Response) {
       caseNo: owned.caseRecord.caseNo,
       language: owned.caseRecord.intakeLanguage,
       question: owned.question.question,
+      source: owned.question.source,
       status: owned.question.status,
       createdAt: owned.question.createdAt,
       answer: answer ? { answer: answer.answer, mode: answer.mode, createdAt: answer.createdAt } : null,
@@ -96,11 +161,7 @@ export async function createPatientFollowUpVoiceToken(req: AuthRequest, res: Res
     return res.status(409).json({ success: false, message: "This follow-up is not accepting an answer" });
   }
   try {
-    const data = createFollowUpRoomToken({
-      userId: patientId,
-      questionId,
-      language: owned.caseRecord.intakeLanguage,
-    });
+    const data = createFollowUpRoomToken({ userId: patientId, questionId, language: owned.caseRecord.intakeLanguage });
     return res.status(200).json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -114,39 +175,36 @@ export async function createPatientFollowUpVoiceToken(req: AuthRequest, res: Res
 export async function submitPatientFollowUpAnswer(req: AuthRequest, res: Response) {
   const patientId = req.user?.userId;
   const questionId = req.params.questionId;
-  const idempotencyKey = req.header("Idempotency-Key")?.trim();
+  const rawKey = req.header("Idempotency-Key")?.trim();
   const answerText = typeof req.body?.answer === "string" ? req.body.answer.trim() : "";
   const requestedMode = req.body?.mode;
   const mode = requestedMode === AnswerMode.VOICE ? AnswerMode.VOICE : requestedMode === AnswerMode.TEXT || requestedMode === undefined ? AnswerMode.TEXT : null;
   if (!patientId || !validId(questionId)) return res.status(400).json({ success: false, message: "Invalid follow-up reference" });
-  if (!idempotencyKey || idempotencyKey.length < 16 || idempotencyKey.length > 128) {
-    return res.status(400).json({ success: false, message: "A stable Idempotency-Key is required to submit an answer" });
-  }
-  if (!mode || !answerText || answerText.length > 4000) {
-    return res.status(400).json({ success: false, message: "Provide an answer under 4,000 characters and select a valid answer mode" });
-  }
+  if (!validIdempotencyKey(rawKey)) return res.status(400).json({ success: false, message: "A stable Idempotency-Key is required to submit an answer" });
+  if (!mode || !answerText || answerText.length > 4000) return res.status(400).json({ success: false, message: "Provide an answer under 4,000 characters and select a valid answer mode" });
 
   const owned = await getOwnedFollowUp(questionId, patientId);
   if (!owned) return res.status(404).json({ success: false, message: "Follow-up not found" });
-  const payloadHash = createHash("sha256").update(JSON.stringify({ answer: answerText, mode })).digest("hex");
-
+  const payloadHash = answerPayloadHash(answerText, mode);
   const existingAnswer = await Answer.findOne({ questionId: owned.question._id }).lean();
   if (existingAnswer) {
-    if (existingAnswer.idempotencyKey === idempotencyKey && existingAnswer.payloadHash === payloadHash) {
+    if (existingAnswer.idempotencyKey === rawKey && existingAnswer.payloadHash === payloadHash) {
+      await finalizeSavedAnswer(owned.question._id, owned.caseRecord._id, new Types.ObjectId(patientId), rawKey);
+      const refreshed = await Question.findById(owned.question._id).select("status").lean();
       return res.status(200).json({
         success: true,
         replayed: true,
-        data: { questionId, status: owned.question.status, answer: existingAnswer.answer, mode: existingAnswer.mode, createdAt: existingAnswer.createdAt },
+        data: { questionId, status: refreshed?.status ?? QuestionStatus.ANSWERED, answer: existingAnswer.answer, mode: existingAnswer.mode, createdAt: existingAnswer.createdAt },
       });
     }
     return res.status(409).json({ success: false, message: "An answer was already submitted for this question. Ask the care team to create a new follow-up if more information is needed." });
   }
 
-  // Claim with a compare-and-set: only the original submission key can resume an
-  // interrupted IN_PROGRESS write. A different concurrent request cannot win.
+  // Compare-and-set locks a question to one idempotency key. Only retries with
+  // that exact key may resume an IN_PROGRESS submission.
   let question = await Question.findOneAndUpdate(
     { _id: owned.question._id, caseId: owned.caseRecord._id, status: QuestionStatus.SENT },
-    { $set: { status: QuestionStatus.IN_PROGRESS, submissionKey: idempotencyKey } },
+    { $set: { status: QuestionStatus.IN_PROGRESS, submissionKey: rawKey } },
     { new: true },
   );
   if (!question) {
@@ -154,71 +212,39 @@ export async function submitPatientFollowUpAnswer(req: AuthRequest, res: Respons
       _id: owned.question._id,
       caseId: owned.caseRecord._id,
       status: QuestionStatus.IN_PROGRESS,
-      submissionKey: idempotencyKey,
+      submissionKey: rawKey,
     });
     if (!question) return res.status(409).json({ success: false, message: "This follow-up is being answered in another session or is no longer accepting responses." });
   }
 
-  // Preserve answer text in the standard per-question answer model and intake
-  // history; never fan one response out to multiple pending questions.
   try {
-    const [answer] = await Promise.all([
-      Answer.create({
-        questionId: question._id,
-        answer: answerText,
-        mode,
-        idempotencyKey,
-        payloadHash,
-        submittedById: new Types.ObjectId(patientId),
-      }),
-      CaseInput.create({
-        caseId: owned.caseRecord._id,
-        mode: mode === AnswerMode.VOICE ? InputMode.VOICE : InputMode.TEXT,
-        content: answerText,
-        language: owned.caseRecord.intakeLanguage,
-        sourceName: `follow-up:${question._id.toString()}`,
-      }),
-    ]);
-    question.status = QuestionStatus.ANSWERED;
-    await question.save();
-
-    const remaining = await Question.countDocuments({
-      caseId: owned.caseRecord._id,
-      status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
-      _id: { $ne: question._id },
+    const answer = await Answer.create({
+      questionId: question._id,
+      answer: answerText,
+      mode,
+      idempotencyKey: rawKey,
+      payloadHash,
+      submittedById: new Types.ObjectId(patientId),
     });
-    if (remaining === 0 && owned.caseRecord.status === CaseStatus.WAITING_FOR_PATIENT && isAllowedStatusTransition(owned.caseRecord.status, CaseStatus.WAITING_FOR_REVIEW)) {
-      const oldStatus = owned.caseRecord.status;
-      owned.caseRecord.status = CaseStatus.WAITING_FOR_REVIEW;
-      await owned.caseRecord.save();
-      await appendCaseAudit(owned.caseRecord._id, {
-        action: "PATIENT_FOLLOW_UP_ANSWERED",
-        actorId: new Types.ObjectId(patientId),
-        timestamp: new Date(),
-        fromStatus: oldStatus,
-        toStatus: owned.caseRecord.status,
-      });
-    } else {
-      await appendCaseAudit(owned.caseRecord._id, {
-        action: "PATIENT_FOLLOW_UP_ANSWERED",
-        actorId: new Types.ObjectId(patientId),
-        timestamp: new Date(),
-      });
-    }
-    await notifyCareTeamAnswer(owned.caseRecord._id, question._id, new Types.ObjectId(patientId));
-    return res.status(201).json({ success: true, replayed: false, data: { questionId, status: question.status, answer: answer.answer, mode: answer.mode, createdAt: answer.createdAt } });
+    await finalizeSavedAnswer(question._id, owned.caseRecord._id, new Types.ObjectId(patientId), rawKey);
+    const refreshed = await Question.findById(question._id).select("status").lean();
+    return res.status(201).json({
+      success: true,
+      replayed: false,
+      data: { questionId, status: refreshed?.status ?? QuestionStatus.ANSWERED, answer: answer.answer, mode: answer.mode, createdAt: answer.createdAt },
+    });
   } catch (error) {
     const duplicateKey = !!error && typeof error === "object" && "code" in error && (error as { code?: number }).code === 11000;
     if (duplicateKey) {
       const saved = await Answer.findOne({ questionId: owned.question._id }).lean();
-      if (saved?.idempotencyKey === idempotencyKey && saved.payloadHash === payloadHash) {
-        await Question.updateOne({ _id: owned.question._id }, { $set: { status: QuestionStatus.ANSWERED } });
+      if (saved?.idempotencyKey === rawKey && saved.payloadHash === payloadHash) {
+        await finalizeSavedAnswer(question._id, owned.caseRecord._id, new Types.ObjectId(patientId), rawKey);
         return res.status(200).json({ success: true, replayed: true, data: { questionId, status: QuestionStatus.ANSWERED, answer: saved.answer, mode: saved.mode, createdAt: saved.createdAt } });
       }
-      return res.status(409).json({ success: false, message: "A response for this follow-up is already being saved or has already been saved." });
+      return res.status(409).json({ success: false, message: "A response for this follow-up is already saved." });
     }
-    // Leave the question IN_PROGRESS with its same submission key. A network
-    // retry of this exact request can safely resume; a different payload cannot.
+    // If persistence succeeded but a later write failed, retrying the same key
+    // repairs the lifecycle and notifications without creating another answer.
     return res.status(503).json({ success: false, message: "Your answer may have been saved. Retry the same submission without changing the answer." });
   }
 }
