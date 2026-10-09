@@ -2,6 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
   getIntakeQuestionBudget,
+  excludeStaffAuthoredQuestions,
   MAX_AI_INTAKE_QUESTIONS,
 } = require("../dist/utils/intakeBudget.js");
 const { normalizePatientText, isRepeatedTurn } = require("../dist/utils/clinicalText.js");
@@ -62,6 +63,21 @@ test("counts multiple questions in one assistant turn and detects overflow", () 
   assert.equal(budget.remaining, 0);
   assert.equal(budget.exhausted, true);
   assert.equal(budget.overLimit, true);
+});
+
+test("excludes exact staff-authored questions from the AI question budget", () => {
+  const conversation = [
+    { role: "user", content: "I have a fever" },
+    { role: "assistant", content: "When did it start?" },
+    { role: "assistant", content: "Have you taken any medicine for the fever?" },
+    { role: "user", content: "No medicine so far" },
+    { role: "assistant", content: "How long has the fever lasted?" },
+  ];
+  const filtered = excludeStaffAuthoredQuestions(conversation, [
+    "Have you taken any medicine for the fever?",
+  ]);
+  assert.equal(filtered.length, 4);
+  assert.equal(getIntakeQuestionBudget(filtered).used, 2);
 });
 
 test("normalizes bounded patient text without inventing content", () => {
