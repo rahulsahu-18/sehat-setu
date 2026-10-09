@@ -79,7 +79,7 @@ async function publishTranscript(ctx: JobContext, transcript: string, language: 
       transcript,
       language,
     }));
-    await ctx.room.localParticipant.publishData(payload, {
+    await ctx.room.localParticipant?.publishData(payload, {
       reliable: true,
       topic: "sehatsetu-followup-transcript",
     });
@@ -138,7 +138,7 @@ const agentDefinition = defineAgent({
           type: "sehatsetu.followup.agent-state",
           state: event.newState,
         }));
-        void ctx.room.localParticipant.publishData(payload, {
+        void ctx.room.localParticipant?.publishData(payload, {
           reliable: true,
           topic: "sehatsetu-followup-agent-state",
         });
