@@ -25,7 +25,7 @@ import {
   statusForDecision,
 } from "../utils/caseWorkflow";
 import { facilityCaseFilter } from "../utils/caseAccess";
-import { notifyPatientFollowUp } from "../utils/notifications";
+import { notifyPatientFollowUp, notifyPatientCaseReview } from "../utils/notifications";
 
 type StaffActor = {
   _id: Types.ObjectId;
@@ -957,6 +957,7 @@ export const reviewStaffCase = async (req: AuthRequest, res: Response) => {
             QuestionStatus.PENDING,
             QuestionStatus.APPROVED,
             QuestionStatus.SENT,
+            QuestionStatus.IN_PROGRESS,
           ],
         },
       },
@@ -972,6 +973,12 @@ export const reviewStaffCase = async (req: AuthRequest, res: Response) => {
     fromPriority: previousPriority,
     toPriority: nextPriority,
   });
+  await notifyPatientCaseReview(
+    caseRecord._id,
+    decision._id,
+    staff._id,
+    targetStatus === CaseStatus.COMPLETED,
+  );
 
   return res.status(201).json({
     success: true,
