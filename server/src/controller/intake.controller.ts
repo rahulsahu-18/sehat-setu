@@ -634,7 +634,9 @@ export const addPatientIntakeInput = async (
 
     return res.status(201).json({
       success: true,
-      message: "Your intake was submitted for AI processing",
+      message: questionLimitReached
+        ? "Your response was saved and the intake is ready for clinical review."
+        : "Your intake was submitted for AI processing",
       data: {
         inputId: input._id,
         caseNo: caseRecord.caseNo,
@@ -653,9 +655,9 @@ export const addPatientIntakeInput = async (
         ),
         complete: reply.complete || questionLimitReached,
         questionBudget: {
-          used: budgetAfterReply.used,
+          used: effectiveQuestionBudget.used,
           maxQuestions: MAX_AI_INTAKE_QUESTIONS,
-          remaining: budgetAfterReply.remaining,
+          remaining: effectiveQuestionBudget.remaining,
         },
       },
     });
