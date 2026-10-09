@@ -11,6 +11,8 @@ import { notifyCareTeamAnswer } from "../utils/notifications";
 import { createFollowUpRoomToken } from "../utils/livekitToken";
 import { isAllowedFollowUpTransition } from "../utils/followUpWorkflow";
 import { hashFollowUpAnswer, matchesIdempotentAnswer, validFollowUpIdempotencyKey } from "../utils/followUpIdempotency";
+import { detectFollowUpLanguage } from "../utils/followUpLanguage";
+import { generateEnglishFollowUpSummary } from "../utils/followUpSummary";
 
 const activeStatuses = [
   QuestionStatus.SENT,
@@ -32,6 +34,70 @@ async function getOwnedFollowUp(questionId: string, patientId: string) {
   const caseRecord = await Case.findOne(ownedCaseFilter);
   if (!caseRecord) return null;
   return { question, caseRecord };
+}
+
+type SummaryStatus = "PENDING" | "READY" | "FAILED";
+
+async function ensureEnglishFollowUpSummary(
+  answerRecord: {
+    _id?: Types.ObjectId;
+    questionId: Types.ObjectId;
+    answer: string;
+    language?: "english" | "hindi" | "odia";
+    englishSummary?: string;
+    englishSummaryStatus?: SummaryStatus;
+  },
+  questionText: string,
+  language: "english" | "hindi" | "odia",
+) {
+  if (answerRecord.englishSummary?.trim()) {
+    return {
+      englishSummary: answerRecord.englishSummary,
+      englishSummaryStatus: "READY" as const,
+      language,
+    };
+  }
+  // The original answer is already safely stored. If the provider is not
+  // configured or temporarily fails, do not reject/lose the patient response.
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    return {
+      englishSummary: undefined,
+      englishSummaryStatus: answerRecord.englishSummaryStatus ?? "PENDING" as SummaryStatus,
+      language,
+    };
+  }
+
+  try {
+    const englishSummary = await generateEnglishFollowUpSummary(
+      questionText,
+      answerRecord.answer,
+      language,
+    );
+    if (answerRecord._id) {
+      await Answer.updateOne(
+        { _id: answerRecord._id, questionId: answerRecord.questionId },
+        { $set: { language, englishSummary, englishSummaryStatus: "READY" } },
+      );
+    }
+    answerRecord.language = language;
+    answerRecord.englishSummary = englishSummary;
+    answerRecord.englishSummaryStatus = "READY";
+    return { englishSummary, englishSummaryStatus: "READY" as const, language };
+  } catch {
+    if (answerRecord._id) {
+      try {
+        await Answer.updateOne(
+          { _id: answerRecord._id, questionId: answerRecord.questionId },
+          { $set: { language, englishSummaryStatus: "FAILED" } },
+        );
+      } catch {
+        // A summary failure must never discard or invalidate the original answer.
+      }
+    }
+    answerRecord.language = language;
+    answerRecord.englishSummaryStatus = "FAILED";
+    return { englishSummary: undefined, englishSummaryStatus: "FAILED" as const, language };
+  }
 }
 
 async function finalizeSavedAnswer(
