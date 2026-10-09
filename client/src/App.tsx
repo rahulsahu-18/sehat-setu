@@ -9,6 +9,7 @@ import FacilityAdminDashboard from "./pages/authPages/FacilityAdminDashboard";
 import PatientCareSetup from "./pages/PatientCareSetup";
 import PatientIntakePage from "./pages/PatientIntakePage";
 import PatientCasesPage from "./pages/PatientCasesPage";
+import PatientFollowUpsPage from "./pages/PatientFollowUpsPage";
 import HealthcareStaffDashboard from "./pages/HealthcareStaffDashboard";
 import StaffCaseDetailPage from "./pages/StaffCaseDetailPage";
 
@@ -26,6 +27,8 @@ export default function App() {
         <Route path="/auth/nurse" element={<HealthcareStaffAuth />} />
         <Route path="/patient/setup" element={<PatientCareSetup />} />
         <Route path="/patient/cases" element={<PatientCasesPage />} />
+        <Route path="/patient/follow-ups" element={<PatientFollowUpsPage />} />
+        <Route path="/patient/follow-ups/:questionId" element={<PatientFollowUpsPage />} />
         <Route path="/patient/intake/:caseId" element={<PatientIntakePage />} />
         <Route path="/staff/dashboard" element={<HealthcareStaffDashboard />} />
         <Route path="/staff/cases/:caseId" element={<StaffCaseDetailPage />} />
