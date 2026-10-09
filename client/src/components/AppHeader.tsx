@@ -104,7 +104,7 @@ function NotificationsMenu() {
             <button key={item._id} type="button" onClick={() => void openNotification(item)} style={{ display: "block", width: "100%", textAlign: "left", padding: 11, border: 0, borderRadius: 10, marginTop: 5, background: item.readAt ? "#fff" : "#f0f8f9", cursor: "pointer", color: "#17313a" }}>
               <span style={{ display: "block", fontWeight: 750, fontSize: 13 }}>{item.title}</span>
               <span style={{ display: "block", color: "#59757d", fontSize: 12, marginTop: 3, lineHeight: 1.4 }}>{item.message}</span>
-              <span style={{ display: "block", color: "#7d9196", fontSize: 11, marginTop: 5 }}>{new Date(item.createdAt).toLocaleString(localeTag(locale))}</span>
+              <span style={{ display: "block", color: "#7d9196", fontSize: 11, marginTop: 5 }}>{new Date(item.createdAt).toLocaleString()}</span>
             </button>
           ))}
         </div>
