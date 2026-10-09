@@ -105,7 +105,8 @@ async function loadFollowUp(questionId: string): Promise<FollowUpContext> {
   const data = payload.data;
   if (
     !payload.success ||
-    String(data?.questionId ?? "").toLowerCase() !== questionId.toLowerCase() ||
+    !data ||
+    String(data.questionId ?? "").toLowerCase() !== questionId.toLowerCase() ||
     typeof data.question !== "string" ||
     !data.question.trim() ||
     !["english", "hindi", "odia"].includes(data.language || "")
