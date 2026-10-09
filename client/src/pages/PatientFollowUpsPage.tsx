@@ -144,7 +144,16 @@ function PatientFollowUpsPage() {
         }
       });
       room.on(RoomEvent.Disconnected, () => {
-        setVoiceState((current) => current === "connecting" || current === "connected" ? "idle" : current);
+        // Network/server disconnects can happen without the patient pressing
+        // Stop. Stop the local capture track immediately and release its refs.
+        try { microphoneRef.current?.stop(); } catch { /* best-effort cleanup */ }
+        microphoneRef.current = null;
+        if (roomRef.current === room) roomRef.current = null;
+        if (audioContainerRef.current) audioContainerRef.current.replaceChildren();
+        setAgentSpeaking(false);
+        setVoiceState((current) =>
+          current === "connecting" || current === "connected" ? "error" : current,
+        );
       });
 
       await room.connect(url, token);
