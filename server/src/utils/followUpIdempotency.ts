@@ -9,6 +9,12 @@ export function hashFollowUpAnswer(answer: string, mode: AnswerMode) {
   return createHash("sha256").update(JSON.stringify({ answer, mode })).digest("hex");
 }
 
+export function hashFollowUpQuestionBatch(questions: string[]) {
+  return createHash("sha256")
+    .update(JSON.stringify(questions.map((question) => question.trim())))
+    .digest("hex");
+}
+
 export function matchesIdempotentAnswer(
   saved: { idempotencyKey?: string; payloadHash?: string },
   key: string,
