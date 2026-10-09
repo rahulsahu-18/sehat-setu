@@ -279,7 +279,11 @@ test("queues clinician-authored questions and sends the approved bundle", async 
   patch(Case, "updateOne", async () => ({ modifiedCount: 1 }));
   patch(Question, "findOne", async () => null);
   patch(Question, "insertMany", async (records) => {
-    const created = records.map((record) => ({ ...record, async save() {} }));
+    const created = records.map((record) => ({
+      ...record,
+      _id: new Types.ObjectId(),
+      async save() {},
+    }));
     queuedQuestions.push(...created);
     return created;
   });
@@ -297,6 +301,7 @@ test("queues clinician-authored questions and sends the approved bundle", async 
   assert.equal(createResponse.body.data.createdCount, 2);
   assert.ok(queuedQuestions.every((question) => question.status === "APPROVED"));
   queuedQuestions.push({
+    _id: new Types.ObjectId(),
     caseId: new Types.ObjectId(caseId),
     question: "Do you have any other symptoms?",
     source: "AI",
