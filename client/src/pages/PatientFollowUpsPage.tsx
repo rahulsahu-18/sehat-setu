@@ -316,7 +316,7 @@ function PatientFollowUpsPage() {
                     <button type="button" onClick={() => void submitAnswer()} disabled={saving || !answer.trim() || voiceState === "connected"} style={buttonStyle("#087e8b", "#fff")}>
                       <Send size={16} /> {saving ? "Saving answer…" : "Review and submit answer"}
                     </button>
-                    <span style={{ color: "#657e84", fontSize: 12 }}>{voiceState === "connected" ? (agentSpeaking ? "Care-team question is being spoken; microphone paused." : "Speak naturally; the microphone pauses during voice prompts.") : "Voice needs LiveKit credentials. Text always remains available."}</span>
+                    <span style={{ color: "#657e84", fontSize: 12 }}>{voiceState === "connected" ? (agentSpeaking ? "Care-team question is being spoken; microphone paused." : "Speak naturally; the microphone pauses during voice prompts.") : followUp.language === "hindi" || followUp.language === "odia" ? "Voice needs LiveKit credentials and SARVAM_API_KEY on the voice worker for Hindi/Odia. Text always remains available." : "Voice needs LiveKit credentials. Text always remains available."}</span>
                   </div>
                   <div ref={audioContainerRef} aria-label="Voice agent audio output" />
                 </>
