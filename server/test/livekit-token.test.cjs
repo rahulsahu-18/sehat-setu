@@ -30,7 +30,7 @@ test("creates a short-lived scoped LiveKit token and explicit agent dispatch", (
     language: "hindi",
     now,
   });
-  const claims = jwt.verify(result.token, process.env.LIVEKIT_API_SECRET);
+  const claims = jwt.verify(result.token, process.env.LIVEKIT_API_SECRET, { clockTimestamp: Math.floor(now / 1000) });
   assert.equal(result.url, process.env.LIVEKIT_URL);
   assert.equal(claims.iss, "synthetic-key");
   assert.equal(claims.video.roomJoin, true);
