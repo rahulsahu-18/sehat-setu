@@ -50,6 +50,7 @@ function queryResult(value) {
   return {
     populate() { return this; },
     select() { return this; },
+    sort() { return this; },
     lean() { return Promise.resolve(value); },
     exec() { return Promise.resolve(value); },
     then(resolve, reject) { return Promise.resolve(value).then(resolve, reject); },
