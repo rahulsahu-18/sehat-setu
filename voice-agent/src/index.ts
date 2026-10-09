@@ -45,18 +45,59 @@ function parseMetadata(value: string | undefined): { workflow?: string; question
   }
 }
 
+function resolveApiBase() {
+  const configured = (process.env.VOICE_AGENT_API_BASE_URL || "http://127.0.0.1:5000").trim();
+  // The internal route is mounted at the server root, not under /api/v1.
+  // Accept either a server origin or a frontend-style base URL ending in /api/v1.
+  return configured.replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
+}
+
 async function loadFollowUp(questionId: string): Promise<FollowUpContext> {
-  const apiBase = (process.env.VOICE_AGENT_API_BASE_URL || "http://localhost:5000").replace(/\/$/, "");
+  const apiBase = resolveApiBase();
   const secret = process.env.VOICE_AGENT_SECRET?.trim();
-  if (!secret) throw new Error("Voice agent service secret is not configured.");
-  const response = await fetch(
-    `${apiBase}/internal/voice/follow-ups/${encodeURIComponent(questionId)}`,
-    {
+  if (!secret) {
+    throw new Error("VOICE_AGENT_SECRET is missing in voice-agent/.env.");
+  }
+
+  const endpoint = `${apiBase}/internal/voice/follow-ups/${encodeURIComponent(questionId)}`;
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
       headers: { "X-Voice-Agent-Secret": secret },
       signal: AbortSignal.timeout(10000),
-    },
-  );
-  if (!response.ok) throw new Error("The requested follow-up context is unavailable.");
+    });
+  } catch {
+    throw new Error(
+      `Could not reach the SehatSetu API at ${apiBase}. Check that the server is running and VOICE_AGENT_API_BASE_URL uses its actual PORT.`,
+    );
+  }
+
+  if (!response.ok) {
+    // The API only returns a short, non-sensitive error code/message here.
+    // Never include the question text, answer, tokens, or shared secret in logs.
+    let apiError: { code?: string; message?: string } = {};
+    try {
+      const body = await response.json() as { code?: string; message?: string };
+      apiError = body;
+    } catch {
+      // HTML 404 pages usually indicate that the base URL points at the wrong service.
+    }
+
+    if (response.status === 401) {
+      throw new Error(
+        "The SehatSetu API rejected X-Voice-Agent-Secret. Set the same VOICE_AGENT_SECRET in server/.env and voice-agent/.env, then restart both.",
+      );
+    }
+    if (response.status === 404 && !apiError.code) {
+      throw new Error(
+        `SehatSetu returned HTTP 404 from ${endpoint}. Check VOICE_AGENT_API_BASE_URL points to the Express server root (for example http://127.0.0.1:5000), not the React/Vite URL.`,
+      );
+    }
+    throw new Error(
+      `SehatSetu API returned HTTP ${response.status}${apiError.code ? ` (${apiError.code})` : ""}: ${apiError.message || "follow-up context unavailable"}`,
+    );
+  }
+
   const payload = await response.json() as {
     success?: boolean;
     data?: { questionId?: string; question?: string; language?: string };
@@ -64,12 +105,14 @@ async function loadFollowUp(questionId: string): Promise<FollowUpContext> {
   const data = payload.data;
   if (
     !payload.success ||
-    data?.questionId !== questionId ||
+    String(data?.questionId ?? "").toLowerCase() !== questionId.toLowerCase() ||
     typeof data.question !== "string" ||
     !data.question.trim() ||
     !["english", "hindi", "odia"].includes(data.language || "")
   ) {
-    throw new Error("The follow-up context was invalid.");
+    throw new Error(
+      "The SehatSetu API returned an invalid follow-up context. Verify the question ID and the API/database used by the backend.",
+    );
   }
   return {
     questionId,
