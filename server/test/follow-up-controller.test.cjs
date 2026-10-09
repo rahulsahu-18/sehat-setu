@@ -179,3 +179,45 @@ test("stores and replays each doctor follow-up answer independently", async () =
   assert.equal(conflict.statusCode, 409);
   assert.equal(answers.size, 2);
 });
+
+test("denies a patient access to another patient's follow-up answer", async () => {
+  const patientId = "64b000000000000000000031";
+  const otherPatientId = "64b000000000000000000032";
+  const caseId = new Types.ObjectId("64b000000000000000000061");
+  const questionId = new Types.ObjectId("64b000000000000000000062");
+  let answerReads = 0;
+  let answerWrites = 0;
+  patch(Question, "findById", (id) => queryResult(
+    String(id) === String(questionId)
+      ? { _id: questionId, caseId, status: QuestionStatus.SENT }
+      : null,
+  ));
+  patch(Case, "findOne", async (filter) => {
+    assert.equal(String(filter._id), String(caseId));
+    assert.equal(String(filter.patientId), patientId);
+    // This case belongs to someone else, so ownership-scoped lookup must fail.
+    assert.notEqual(patientId, otherPatientId);
+    return null;
+  });
+  patch(Answer, "findOne", () => {
+    answerReads += 1;
+    return queryResult(null);
+  });
+  patch(Answer, "create", async () => {
+    answerWrites += 1;
+    throw new Error("answer must never be created for a foreign case");
+  });
+
+  const res = responseRecorder();
+  await followUps.getPatientFollowUp(
+    {
+      user: { userId: patientId, role: "PATIENT" },
+      params: { questionId: String(questionId) },
+    },
+    res,
+  );
+
+  assert.equal(res.statusCode, 404);
+  assert.equal(answerReads, 0);
+  assert.equal(answerWrites, 0);
+});
