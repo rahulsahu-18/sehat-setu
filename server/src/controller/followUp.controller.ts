@@ -198,16 +198,27 @@ export async function submitPatientFollowUpAnswer(req: AuthRequest, res: Respons
     return res.status(409).json({ success: false, message: "An answer was already submitted for this question. Ask the care team to create a new follow-up if more information is needed." });
   }
 
-  // Compare-and-set locks a question to one idempotency key. Only retries with
-  // that exact key may resume an IN_PROGRESS submission.
+  // Compare-and-set locks a question to one idempotency key. If a worker
+  // disappeared before saving any answer, allow a lease to be recovered after
+  // two minutes. The unique partial answer index prevents double writes.
+  const expiredLeaseBefore = new Date(Date.now() - 2 * 60 * 1000);
   let question = await Question.findOneAndUpdate(
     {
       _id: owned.question._id,
       caseId: owned.caseRecord._id,
       status: { $in: [QuestionStatus.SENT, QuestionStatus.IN_PROGRESS] },
-      submissionKey: { $exists: false },
+      $or: [
+        { submissionKey: { $exists: false } },
+        { submissionStartedAt: { $lt: expiredLeaseBefore } },
+      ],
     },
-    { $set: { status: QuestionStatus.IN_PROGRESS, submissionKey: rawKey } },
+    {
+      $set: {
+        status: QuestionStatus.IN_PROGRESS,
+        submissionKey: rawKey,
+        submissionStartedAt: new Date(),
+      },
+    },
     { new: true },
   );
   if (!question) {
