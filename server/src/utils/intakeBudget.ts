@@ -4,19 +4,20 @@ export type IntakeQuestionBudget = {
   used: number;
   remaining: number;
   exhausted: boolean;
+  overLimit: boolean;
 };
 
 /**
- * Counts distinct assistant question turns. The fingerprint includes the
- * patient answer that preceded the question, so a retry of the same answer
- * and response is counted once, while a repeated question after a new answer
- * still consumes question budget.
+ * Counts question marks in distinct assistant turns. The fingerprint includes
+ * the preceding patient response so an identical answer/question pair caused
+ * by a retry is counted once, while repeated wording after a new answer counts
+ * again. This remains a text-based guard; mutation idempotency needs stable IDs.
  */
 export function getIntakeQuestionBudget(
   conversation: Array<{ role: string; content: string }>,
   maxQuestions = MAX_AI_INTAKE_QUESTIONS,
 ): IntakeQuestionBudget {
-  const seen = new Set<string>();
+  const seen = new Map<string, number>();
   let precedingPatientAnswer = "";
 
   for (const turn of conversation) {
@@ -26,15 +27,19 @@ export function getIntakeQuestionBudget(
     }
     if (turn.role !== "assistant" || typeof turn.content !== "string") continue;
     const content = turn.content.trim();
-    if (!content || !/[?？؟]/.test(content)) continue;
+    const count = content.match(/[?？؟]/g)?.length ?? 0;
+    if (!content || count === 0) continue;
     const normalizedQuestion = content.toLocaleLowerCase().replace(/\s+/g, " ").trim();
-    seen.add(`${precedingPatientAnswer}\u0000${normalizedQuestion}`);
+    const key = `${precedingPatientAnswer}\u0000${normalizedQuestion}`;
+    if (!seen.has(key)) seen.set(key, count);
   }
 
-  const used = Math.min(seen.size, maxQuestions);
+  const rawCount = [...seen.values()].reduce((total, count) => total + count, 0);
+  const used = Math.min(rawCount, maxQuestions);
   return {
     used,
-    remaining: Math.max(0, maxQuestions - used),
-    exhausted: used >= maxQuestions,
+    remaining: Math.max(0, maxQuestions - rawCount),
+    exhausted: rawCount >= maxQuestions,
+    overLimit: rawCount > maxQuestions,
   };
 }
