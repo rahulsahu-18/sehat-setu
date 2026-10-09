@@ -22,11 +22,28 @@ export async function getVoiceAgentFollowUp(req: Request, res: Response) {
     return res.status(400).json({ success: false, message: "Invalid question reference" });
   }
   const question = await Question.findById(questionId).select("caseId question source status").lean();
-  if (!question || ![QuestionStatus.SENT, QuestionStatus.IN_PROGRESS].includes(question.status)) {
-    return res.status(404).json({ success: false, message: "Follow-up not available" });
+  if (!question) {
+    return res.status(404).json({
+      success: false,
+      code: "VOICE_QUESTION_NOT_FOUND",
+      message: "No follow-up question exists for this ID in the API database.",
+    });
+  }
+  if (![QuestionStatus.SENT, QuestionStatus.IN_PROGRESS].includes(question.status)) {
+    return res.status(409).json({
+      success: false,
+      code: "VOICE_QUESTION_STATUS_UNAVAILABLE",
+      message: `The follow-up exists, but its current status is ${question.status}; voice requires SENT or IN_PROGRESS.`,
+    });
   }
   const caseRecord = await Case.findById(question.caseId).select("intakeLanguage").lean();
-  if (!caseRecord) return res.status(404).json({ success: false, message: "Care case not found" });
+  if (!caseRecord) {
+    return res.status(404).json({
+      success: false,
+      code: "VOICE_CASE_NOT_FOUND",
+      message: "The follow-up exists but its care case is missing from the API database.",
+    });
+  }
   return res.status(200).json({
     success: true,
     data: {
