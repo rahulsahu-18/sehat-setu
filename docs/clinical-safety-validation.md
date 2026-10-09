@@ -29,6 +29,7 @@ The API refuses to start with `NODE_ENV=production` unless all of these environm
 - `CLINICAL_SAFETY_POLICY_APPROVED_BY`
 - `CLINICAL_SAFETY_POLICY_APPROVED_AT` (valid ISO date)
 - `CLINICAL_SAFETY_POLICY_REVIEW_RECORD` (reference to the controlled review evidence)
+- `CLINICAL_SAFETY_MESSAGE_ENGLISH`, `CLINICAL_SAFETY_MESSAGE_HINDI`, and `CLINICAL_SAFETY_MESSAGE_ODIA` (localized emergency instructions approved for the exact deployment facilities/jurisdiction)
 
 These fields are attestations, not proof. Do not set the status to approved until a qualified clinician has actually completed the review and the evidence is independently retained. Never put patient data or full transcripts in the environment values.
 
