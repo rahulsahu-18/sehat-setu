@@ -10,6 +10,7 @@ import {
   startPatientIntake,
 } from "../controller/intake.controller";
 import { patientOnly, protect } from "../middleware/auth.middleware";
+import { listPatientFollowUps, getPatientFollowUp, createPatientFollowUpVoiceToken, submitPatientFollowUpAnswer } from "../controller/followUp.controller";
 import {
   processPatientReport,
   uploadPatientReport,
@@ -25,6 +26,10 @@ patientRouter.post("/register", registerPatient);
 patientRouter.post("/login", loginUser);
 patientRouter.post("/intake", protect, patientOnly, startPatientIntake);
 patientRouter.get("/cases", protect, patientOnly, getPatientCases);
+patientRouter.get("/follow-ups", protect, patientOnly, listPatientFollowUps);
+patientRouter.get("/follow-ups/:questionId", protect, patientOnly, getPatientFollowUp);
+patientRouter.post("/follow-ups/:questionId/voice-token", protect, patientOnly, createPatientFollowUpVoiceToken);
+patientRouter.post("/follow-ups/:questionId/answer", protect, patientOnly, submitPatientFollowUpAnswer);
 patientRouter.delete("/cases/:caseId", protect, patientOnly, deletePatientCase);
 patientRouter.delete("/account", protect, patientOnly, deletePatientAccount);
 patientRouter.get(
