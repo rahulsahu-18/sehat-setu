@@ -14,7 +14,8 @@
   "dependencies": {
     "@livekit/agents": "^1.9.1",
     "@livekit/agents-plugin-openai": "^1.9.1",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "@livekit/agents-plugin-sarvam": "^1.9.1"
   },
   "devDependencies": {
     "@types/node": "^22.20.2",
