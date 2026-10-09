@@ -18,6 +18,7 @@ test("counts distinct assistant questions only", () => {
     used: 2,
     remaining: 8,
     exhausted: false,
+    overLimit: false,
   });
 });
 
@@ -43,7 +44,24 @@ test("stops at the configured ten-question maximum", () => {
     used: 10,
     remaining: 0,
     exhausted: true,
+    overLimit: true,
   });
+});
+
+test("counts multiple questions in one assistant turn and detects overflow", () => {
+  const conversation = [
+    { role: "user", content: "I have a fever" },
+    { role: "assistant", content: "When did it start? Have you measured it?" },
+    ...Array.from({ length: 9 }, (_, index) => [
+      { role: "user", content: `answer ${index}` },
+      { role: "assistant", content: `Question ${index}?` },
+    ]).flat(),
+  ];
+  const budget = getIntakeQuestionBudget(conversation);
+  assert.equal(budget.used, 10);
+  assert.equal(budget.remaining, 0);
+  assert.equal(budget.exhausted, true);
+  assert.equal(budget.overLimit, true);
 });
 
 test("normalizes bounded patient text without inventing content", () => {
