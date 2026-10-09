@@ -36,6 +36,7 @@ function PatientFollowUpsPage() {
   const [error, setError] = useState("");
   const roomRef = useRef<Room | null>(null);
   const microphoneRef = useRef<Awaited<ReturnType<typeof createLocalAudioTrack>> | null>(null);
+  const idempotencyStorageKey = questionId ? `sehatsetu:followup-idempotency:${questionId}` : "";
   const audioContainerRef = useRef<HTMLDivElement | null>(null);
   const idempotencyRef = useRef<{ payload: string; key: string } | null>(null);
 
@@ -116,6 +117,7 @@ function PatientFollowUpsPage() {
           setAnswer((current) => current ? `${current.trim()} ${transcript}` : transcript);
           setMode("VOICE");
           idempotencyRef.current = null;
+          if (idempotencyStorageKey) window.sessionStorage.removeItem(idempotencyStorageKey);
         } catch {
           setError("A voice transcript could not be read. You can type your answer instead.");
         }
@@ -154,13 +156,28 @@ function PatientFollowUpsPage() {
     await stopVoice();
     try {
       const payloadIdentity = JSON.stringify({ answer: normalized, mode });
-      if (!idempotencyRef.current || idempotencyRef.current.payload !== payloadIdentity) {
-        idempotencyRef.current = { payload: payloadIdentity, key: crypto.randomUUID() };
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payloadIdentity));
+      const payloadHash = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      let savedKey: { key: string; payloadHash: string } | null = null;
+      try {
+        const saved = idempotencyStorageKey ? window.sessionStorage.getItem(idempotencyStorageKey) : null;
+        savedKey = saved ? JSON.parse(saved) as { key: string; payloadHash: string } : null;
+      } catch {
+        savedKey = null;
+      }
+      const key = savedKey?.payloadHash === payloadHash
+        ? savedKey.key
+        : crypto.randomUUID();
+      idempotencyRef.current = { payload: payloadIdentity, key };
+      // Store only a random key and a one-way answer fingerprint. Do not persist
+      // patient answer text in browser storage; this survives refresh/retry.
+      if (idempotencyStorageKey) {
+        window.sessionStorage.setItem(idempotencyStorageKey, JSON.stringify({ key, payloadHash }));
       }
       const response = await api.post(
         `/patient/follow-ups/${followUp.id}/answer`,
         { answer: normalized, mode },
-        { headers: { "Idempotency-Key": idempotencyRef.current.key } },
+        { headers: { "Idempotency-Key": key } },
       );
       const data = response.data.data;
       setFollowUp((current) => current ? {
@@ -173,6 +190,8 @@ function PatientFollowUpsPage() {
         : item));
       setAnswer(data.answer);
       setMode(data.mode);
+      if (idempotencyStorageKey) window.sessionStorage.removeItem(idempotencyStorageKey);
+      idempotencyRef.current = null;
       setError("");
     } catch (requestError: any) {
       setError(requestError.response?.data?.message || "Unable to save the answer. Retry the same answer to safely resume.");
@@ -237,6 +256,7 @@ function PatientFollowUpsPage() {
                         setAnswer(event.target.value);
                         setMode("TEXT");
                         idempotencyRef.current = null;
+                        if (idempotencyStorageKey) window.sessionStorage.removeItem(idempotencyStorageKey);
                       }}
                       rows={5}
                       maxLength={4000}
