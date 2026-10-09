@@ -9,9 +9,14 @@ import {
 } from "@livekit/agents";
 import * as openai from "@livekit/agents-plugin-openai";
 import dotenv from "dotenv";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-dotenv.config();
+// Resolve the worker's env file from the package directory, not the caller's
+// working directory. This works for both src/index.ts and dist/index.js.
+dotenv.config({
+  path: resolve(dirname(fileURLToPath(import.meta.url)), "../.env"),
+});
 
 type FollowUpContext = {
   questionId: string;
@@ -88,7 +93,7 @@ async function publishTranscript(ctx: JobContext, transcript: string, language: 
   }
 }
 
-const agentDefinition = defineAgent({
+export default defineAgent({
   entry: async (ctx: JobContext) => {
     const metadata = parseMetadata(ctx.job.metadata || ctx.room.metadata);
     if (metadata.workflow !== "doctor-follow-up" || !metadata.questionId) {
