@@ -25,7 +25,7 @@ export async function getVoiceAgentFollowUp(req: Request, res: Response) {
     return res.status(404).json({ success: false, message: "Follow-up not available" });
   }
   const caseRecord = await Case.findById(question.caseId).select("intakeLanguage").lean();
-  if (!caseRecord) return res.status(404).json({ success: false, message: "Care case not found" };
+  if (!caseRecord) return res.status(404).json({ success: false, message: "Care case not found" });
   return res.status(200).json({
     success: true,
     data: {
