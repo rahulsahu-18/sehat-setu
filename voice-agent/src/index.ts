@@ -130,6 +130,23 @@ const agentDefinition = defineAgent({
       void publishTranscript(ctx, event.transcript.trim(), followUp.language);
     });
 
+    // Let the patient client pause its microphone during synthesized speech to
+    // avoid transcribing the agent's own audio as a patient response.
+    session.on(AgentSessionEventTypes.AgentStateChanged, (event) => {
+      try {
+        const payload = new TextEncoder().encode(JSON.stringify({
+          type: "sehatsetu.followup.agent-state",
+          state: event.newState,
+        }));
+        void ctx.room.localParticipant.publishData(payload, {
+          reliable: true,
+          topic: "sehatsetu-followup-agent-state",
+        });
+      } catch {
+        // State signalling is advisory; text answer submission remains available.
+      }
+    });
+
     session.on(AgentSessionEventTypes.Error, () => {
       // Provider/session errors are intentionally not logged with transcript or prompt details.
       console.error("LiveKit follow-up agent encountered a provider/session error.");
@@ -140,7 +157,6 @@ const agentDefinition = defineAgent({
       agent,
       inputOptions: { deleteRoomOnClose: true },
     });
-    await ctx.connect();
     await session.generateReply({
       instructions: [
         `Ask this healthcare professional's question in ${language}:`,
