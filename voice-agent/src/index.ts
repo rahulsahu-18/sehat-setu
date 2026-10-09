@@ -8,6 +8,7 @@ import {
   defineAgent,
 } from "@livekit/agents";
 import * as openai from "@livekit/agents-plugin-openai";
+import * as sarvam from "@livekit/agents-plugin-sarvam";
 import dotenv from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,10 +30,10 @@ const languageNames: Record<FollowUpContext["language"], string> = {
   hindi: "Hindi",
   odia: "Odia",
 };
-const languageCodes: Record<FollowUpContext["language"], string> = {
-  english: "en",
-  hindi: "hi",
-  odia: "or",
+const sarvamLanguageCodes: Record<FollowUpContext["language"], string> = {
+  english: "en-IN",
+  hindi: "hi-IN",
+  odia: "od-IN",
 };
 
 function parseMetadata(value: string | undefined): { workflow?: string; questionId?: string; language?: string } {
@@ -115,23 +116,56 @@ export default defineAgent({
         "You are the speech interface for a healthcare follow-up form, not a clinician.",
         `The patient language is ${language}.`,
         "The one and only source question was written by a healthcare professional.",
-        "Ask that question faithfully in the selected patient language. Translate only when necessary, preserving the meaning and uncertainty; do not add subquestions.",
-        "After asking it, listen to the patient. If their answer is unclear, ask one brief, neutral clarification or repeat the original question on request.",
+        "Read the exact question text verbatim, preserving its original words and script. Do not translate an English question into Hindi/Odia or a Hindi/Odia question into English. The selected voice language is based on the question itself, not the patient's general profile.",
+        "After asking the exact question, listen to the patient and let them answer in that same language. Keep the transcript in that language and native script. If the answer is unclear, ask one brief, neutral clarification in the same language or repeat the original question on request.",
+        "Do not add a greeting before the question or insert your own medical questions.",
         "Never diagnose, prescribe, recommend treatment, or answer medical questions yourself. Never imply a clinician has reviewed the answer.",
         "Keep speech concise and do not discuss any other subject.",
       ].join(" "),
     });
 
-    const session = new AgentSession({
-      stt: new openai.STT({
+    // OpenAI STT/TTS are used for English. Sarvam provides explicit Indian
+    // language transcription and speech synthesis so Hindi/Odia answers remain
+    // in their native script instead of being translated to English.
+    let stt: InstanceType<typeof openai.STT> | InstanceType<typeof sarvam.STT>;
+    let tts: InstanceType<typeof openai.TTS> | InstanceType<typeof sarvam.TTS>;
+    if (followUp.language === "english") {
+      stt = new openai.STT({
         model: process.env.OPENAI_TRANSCRIPTION_MODEL || "whisper-1",
-        language: languageCodes[followUp.language],
+        language: "en",
         useRealtime: false,
-      }),
+      });
+      tts = new openai.TTS({
+        model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
+        voice: "alloy",
+        instructions: "Speak clear, natural English. Read the supplied clinician question faithfully.",
+      });
+    } else {
+      if (!process.env.SARVAM_API_KEY?.trim()) {
+        throw new Error(
+          "Hindi/Odia voice requires SARVAM_API_KEY in voice-agent/.env. Text answers remain available.",
+        );
+      }
+      const sarvamLanguage = sarvamLanguageCodes[followUp.language];
+      stt = new sarvam.STT({
+        languageCode: sarvamLanguage,
+        model: "saaras:v3",
+        mode: "transcribe",
+      });
+      tts = new sarvam.TTS({
+        targetLanguageCode: sarvamLanguage,
+        model: "bulbul:v3",
+        speaker: process.env.SARVAM_TTS_SPEAKER || "shubh",
+        pace: 1.0,
+      });
+    }
+
+    const session = new AgentSession({
+      stt,
       llm: new openai.LLM({
         model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       }),
-      tts: new openai.TTS({ voice: "alloy" }),
+      tts,
     });
 
     session.on(AgentSessionEventTypes.UserInputTranscribed, (event) => {
@@ -168,9 +202,9 @@ export default defineAgent({
     });
     await session.generateReply({
       instructions: [
-        `Ask this healthcare professional's question in ${language}:`,
+        `Read the following healthcare professional's question exactly as written, using ${language} speech. Do not translate the text or add a greeting:`,
         followUp.question,
-        "Ask it once, faithfully. Then listen for the answer. Do not provide medical advice or add questions unless one neutral clarification is needed.",
+        "After reading the exact question, listen to the patient. Accept the answer in the same language and do not translate it. Do not provide medical advice or ask extra questions unless one neutral clarification is needed.",
       ].join("\n"),
       allowInterruptions: true,
     });
