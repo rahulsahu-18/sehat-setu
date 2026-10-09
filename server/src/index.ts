@@ -11,6 +11,8 @@ import userRouter from "./routes/user.routes";
 import facilityRouter from "./routes/facility.routes";
 import staffRoutes from "./routes/staff.routes";
 import { startRetentionCleanup } from "./utils/caseData";
+import notificationRoutes from "./routes/notification.routes";
+import voiceAgentRoutes from "./routes/voiceAgent.routes";
 
 if (!process.env.OPENAI_API_KEY?.trim()) {
   delete process.env.OPENAI_API_KEY;
@@ -32,6 +34,23 @@ if (process.env.NODE_ENV === "production") {
   }
   if ((process.env.JWT_SECRET || "").length < 32) {
     throw new Error("JWT_SECRET must be at least 32 characters in production.");
+  }
+  const clinicalApprovalFields = [
+    "CLINICAL_SAFETY_POLICY_STATUS",
+    "CLINICAL_SAFETY_POLICY_APPROVED_BY",
+    "CLINICAL_SAFETY_POLICY_APPROVED_AT",
+    "CLINICAL_SAFETY_POLICY_REVIEW_RECORD",
+  ] as const;
+  if (
+    process.env.CLINICAL_SAFETY_POLICY_STATUS !== "approved" ||
+    clinicalApprovalFields.slice(1).some((name) => !process.env[name]?.trim())
+  ) {
+    throw new Error(
+      "Production startup blocked: a qualified clinical lead must review and record approval of the configured safety policy.",
+    );
+  }
+  if (Number.isNaN(Date.parse(process.env.CLINICAL_SAFETY_POLICY_APPROVED_AT || ""))) {
+    throw new Error("CLINICAL_SAFETY_POLICY_APPROVED_AT must be a valid ISO date.");
   }
 }
 
@@ -86,6 +105,8 @@ app.use("/api/v1/staff", staffRoutes);
 app.use("/api/v1/user", userRouter);
 
 app.use("/api/v1/facility", facilityRouter);
+app.use("/api/v1/notifications", notificationRoutes);
+app.use("/internal/voice", voiceAgentRoutes);
 
 const PORT = Number(process.env.PORT || 5000);
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
